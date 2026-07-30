@@ -15,6 +15,20 @@ Prioridades explícitas del usuario:
   final en español, sin jerga sin definir, que le permita entender y
   probar la herramienta él mismo.
 
+**Decisión de idioma (post-Task 6):** todo lo orientado al producto —
+prompts enviados a Claude, checklist, plantilla del informe generado y
+`README.md` — va en **inglés** (audiencia natural: analistas/inversores
+deep-tech internacionales, coherente con el objetivo de portfolio para
+roles como MNTY). Esto también resuelve, de raíz, un problema de
+recuperación real detectado en la Tarea 6: con preguntas en español y
+contenido variable en inglés/español, el modelo de embeddings inglés
+`all-MiniLM-L6-v2` fallaba en el retrieval. Con todo en inglés, se
+mantiene `all-MiniLM-L6-v2` sin necesidad de un modelo multilingüe.
+Excepción explícita: la documentación de uso para el propio usuario se
+entrega en **dos versiones** — `GUIA-DE-USO.md` en español (para el
+usuario, principiante en IA) y `USER-GUIDE.md` en inglés (para el repo
+público), ambas con el mismo contenido.
+
 ## Ubicación y publicación
 
 - Repo local: `~/Projects/dd-copilot` (convención de proyectos del usuario).
@@ -48,13 +62,13 @@ app.py           → visor Streamlit de una sola página (reutiliza el core)
 
 ### 3. Extracción estructurada (`extract.py`)
 - LLM: Claude vía `llama-index-llms-anthropic` (Anthropic SDK oficial).
-- Checklist fijo a extraer:
-  - Problema que resuelve la tecnología.
-  - Diferenciación técnica frente a alternativas.
-  - Afirmaciones de rendimiento/escalabilidad.
-  - Riesgos técnicos NO mencionados (checklist fijo: madurez TRL,
-    dependencia de hardware/proveedor, reproducibilidad de resultados,
-    riesgo regulatorio si aplica).
+- Checklist fijo a extraer (claves e identificadores en inglés, ver
+  Decisión de idioma arriba):
+  - Problema que resuelve la tecnología (`problem`).
+  - Diferenciación técnica frente a alternativas (`differentiation`).
+  - Afirmaciones de rendimiento/escalabilidad (`performance`).
+  - Riesgos técnicos NO mencionados (checklist fijo: `trl_maturity`,
+    `hardware_dependency`, `reproducibility`, `regulatory_risk`).
 - Salida forzada a JSON vía Pydantic (`structured_predict` de LlamaIndex),
   no texto libre — evita parsing frágil y reduce tokens de post-proceso.
 - **Cascada de modelos para ahorro de tokens**:
@@ -79,12 +93,12 @@ app.py           → visor Streamlit de una sola página (reutiliza el core)
   fuente" en vez de inventarse contenido.
 
 ### 5. Informe final (`report.py`)
-Plantilla Markdown con secciones fijas:
-1. Resumen ejecutivo
-2. Qué dice la startup (con citas)
-3. Qué no dice (riesgos del checklist no cubiertos)
-4. Preguntas para la siguiente llamada con el fundador
-5. Nivel de confianza del análisis (1-5, justificado)
+Plantilla Markdown en **inglés** con secciones fijas:
+1. Executive Summary
+2. What the Startup Says (con citas)
+3. What It Doesn't Say (riesgos del checklist no cubiertos)
+4. Questions for the Next Founder Call
+5. Confidence Level (1-5, justificado)
 
 ### 6. Interfaces
 - **CLI** (`cli.py`, Typer + Rich): `ddcopilot analyze <url_o_ruta_pdf>`
@@ -122,12 +136,13 @@ Plantilla Markdown con secciones fijas:
 
 ## Entregables
 1. Repo en `~/Projects/dd-copilot`, publicado en GitHub (`jjpp01x`, público).
-2. `README.md` técnico: explica el "por qué" de cada decisión de
-   arquitectura (chunking, cascada de modelos, validación de citas), no
+2. `README.md` (en inglés) técnico: explica el "por qué" de cada decisión
+   de arquitectura (chunking, cascada de modelos, validación de citas), no
    solo el "qué".
-3. `GUIA-DE-USO.md`: documento en español, sin jerga sin definir, para
-   que el usuario (principiante en IA) entienda cada pieza, instale el
-   proyecto, ejecute el demo y sepa interpretar el informe generado.
+3. `GUIA-DE-USO.md` (español) y `USER-GUIDE.md` (inglés): mismo contenido
+   en ambos idiomas, sin jerga sin definir, para que el usuario
+   (principiante en IA) entienda cada pieza, instale el proyecto, ejecute
+   el demo y sepa interpretar el informe generado.
 4. Ejemplo ya procesado de Isomorphic Labs como demo.
 
 ## Fuera de alcance (roadmap, no implementar ahora)
