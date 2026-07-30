@@ -58,11 +58,15 @@ benefit at this scale.
 field and each risk question is a small, well-defined classification task —
 that's Haiku's job. Only the final synthesis (turning already-structured
 extraction into a confidence score and justification) goes to Sonnet, since
-that's the one step where reasoning quality actually matters. Anthropic
-prompt caching keeps the fixed system prompt from being re-billed on every
-call within a single analysis. Retrieval-by-embeddings runs before any LLM
-call at all, so only the top-k relevant chunks (not the whole document) are
-ever sent to a model.
+that's the one step where reasoning quality actually matters. Each Claude
+call marks the system prompt with `cache_control` for Anthropic prompt
+caching — the saving only actually materializes once the system prompt
+grows past the model's minimum cacheable prefix (currently a few hundred
+to a few thousand tokens depending on the model), so on this small a
+prompt it's mostly future-proofing rather than a measured cost win today.
+Retrieval-by-embeddings runs before any LLM call at all, so only the
+top-k relevant chunks (not the whole document) are ever sent to a model —
+that's the retrieval-side saving that's actually in effect now.
 
 **Citation verification is a hard requirement, not a nice-to-have.** Every
 claim in the report must carry a citation that is fuzzy-matched (via
