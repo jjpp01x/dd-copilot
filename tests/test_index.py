@@ -12,9 +12,8 @@ def test_retrieve_relevant_chunks_returns_most_similar_node():
             "The company was founded as a DeepMind spin-off in 2021."
         ),
     )
-    nodes = chunk_document(doc, chunk_size=40, chunk_overlap=5)
+    nodes = chunk_document(doc, chunk_size=20, chunk_overlap=5)
     index = build_index(nodes)
-    results = retrieve_relevant_chunks(index, "What AI technology does the company use?", top_k=2)
-    assert len(results) == 2
-    # Check that at least one result contains the expected keywords
-    assert any("deep learning" in result.get_content() or "protein" in result.get_content() for result in results)
+    results = retrieve_relevant_chunks(index, "How does the startup predict protein structures?", top_k=1)
+    assert len(results) == 1
+    assert "deep learning" in results[0].get_content() or "protein" in results[0].get_content()
