@@ -14,10 +14,10 @@ class ChecklistField(BaseModel):
 
 
 RiskName = Literal[
-    "madurez_trl",
-    "dependencia_hardware",
-    "reproducibilidad",
-    "riesgo_regulatorio",
+    "trl_maturity",
+    "hardware_dependency",
+    "reproducibility",
+    "regulatory_risk",
 ]
 
 
@@ -29,10 +29,10 @@ class RiskChecklistItem(BaseModel):
 
 
 class ExtractionResult(BaseModel):
-    problema: ChecklistField
-    diferenciacion: ChecklistField
-    rendimiento: ChecklistField
-    riesgos: list[RiskChecklistItem]
+    problem: ChecklistField
+    differentiation: ChecklistField
+    performance: ChecklistField
+    risks: list[RiskChecklistItem]
 
 
 class ReportInput(BaseModel):
