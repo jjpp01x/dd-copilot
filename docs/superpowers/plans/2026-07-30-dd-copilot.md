@@ -19,7 +19,7 @@ the two interfaces.
 
 ## Global Constraints
 
-- Solo Claude vía el SDK oficial de Anthropic — ningún otro proveedor de LLM.
+- **Decisión revisada tras Task 12 (bloqueo de saldo de API):** el proveedor de LLM es ahora intercambiable vía una abstracción `LLMProvider` (`dd_copilot/providers.py`). Claude, vía el SDK oficial de Anthropic con la cascada Haiku/Sonnet, sigue siendo el proveedor **por defecto y documentado como recomendado para producción**. Se añade un segundo proveedor, **Ollama en local** (`llama3.1`, sin coste, sin API key), seleccionable con `--provider ollama` en la CLI y un selector en Streamlit — pensado para desarrollo/demo sin gasto. Ningún otro proveedor (OpenAI, etc.) se añade; el roadmap de "multi-proveedor" fuera de alcance queda resuelto solo para estos dos.
 - RAG con LlamaIndex: `SentenceSplitter` para chunking semántico + `VectorStoreIndex` en memoria (sin base vectorial externa).
 - Embeddings locales: `HuggingFaceEmbedding` con modelo `sentence-transformers/all-MiniLM-L6-v2` (coste cero de API en indexado).
 - **Idioma del producto: inglés.** Todos los prompts enviados a Claude, las claves/etiquetas del checklist, y la plantilla del informe generado están en inglés (decisión post-Task 6: evita el problema de retrieval cross-lingual con `all-MiniLM-L6-v2`, que es un modelo solo-inglés). `README.md` también en inglés. Excepción: la documentación de uso para el usuario se entrega en dos ficheros — `GUIA-DE-USO.md` (español) y `USER-GUIDE.md` (inglés), mismo contenido en ambos.
@@ -1229,13 +1229,18 @@ git commit -m "feat: visor Streamlit de una pagina"
 
 Pegar en `examples/isomorphic-labs/source.txt` el contenido público (web "About"/"Science" de isomorphiclabs.com, o un comunicado de prensa; si el original está en inglés, pegarlo tal cual — coherente con la decisión de idioma del producto) — texto plano, citando la fuente en la primera línea como comentario `<!-- source: https://... -->`.
 
-- [ ] **Step 2: Configurar la API key real**
+- [ ] **Step 2: Elegir proveedor de ejecución**
 
-Run: `cp .env.example .env` y rellenar `ANTHROPIC_API_KEY` con la clave real del usuario (no se commitea, está en `.gitignore`).
+Esta tarea se ejecuta **después** de la Task 12b (abstracción de proveedor).
+Por un bloqueo real de saldo en la cuenta de API de Anthropic durante el
+desarrollo, la demo se generó con `--provider ollama` (`llama3.1` en
+local, sin coste). Si se dispone de `ANTHROPIC_API_KEY` con saldo, se
+puede regenerar exactamente igual con `--provider claude` (por defecto) —
+mismo pipeline, mismo formato de informe, sin cambios de código.
 
 - [ ] **Step 3: Ejecutar el análisis real end-to-end**
 
-Run: `ddcopilot analyze examples/isomorphic-labs/source.txt --output examples/isomorphic-labs/report.md`
+Run: `ddcopilot analyze examples/isomorphic-labs/source.txt --output examples/isomorphic-labs/report.md --provider ollama`
 Expected: fichero `report.md` generado con las 5 secciones fijas, sin errores.
 
 - [ ] **Step 4: Revisar manualmente el informe generado**
@@ -1247,6 +1252,210 @@ Abrir `examples/isomorphic-labs/report.md` y comprobar: (a) toda cita aparece li
 ```bash
 git add examples/isomorphic-labs/
 git commit -m "docs: demo real con Isomorphic Labs"
+```
+
+---
+
+### Task 12b: `providers.py` — abstracción de proveedor LLM (Claude + Ollama)
+
+**Files:**
+- Create: `dd_copilot/providers.py`
+- Modify: `dd_copilot/extract.py` (recibe `provider: LLMProvider` en vez de `client`)
+- Modify: `dd_copilot/pipeline.py` (`analyze(source, provider)`)
+- Modify: `dd_copilot/cli.py` (opción `--provider claude|ollama`, default `claude`)
+- Modify: `app.py` (selector Claude/Ollama en Streamlit)
+- Modify/Create tests: `tests/test_providers.py`, `tests/test_extract.py`, `tests/test_pipeline.py`, `tests/test_cli.py`
+
+**Interfaces:**
+- Consumes: `anthropic.Anthropic` (Claude), `requests` HTTP a Ollama local (`http://localhost:11434`).
+- Produces: `LLMProvider` (protocolo con `.complete(system_prompt, user_prompt, tier) -> str`), `ClaudeProvider`, `OllamaProvider` — usados por `extract.py`, `pipeline.py`, `cli.py`, `app.py`.
+
+- [ ] **Step 1: Escribir los tests que fallan**
+
+```python
+# tests/test_providers.py
+import json
+from unittest.mock import MagicMock, patch
+
+from dd_copilot.providers import ClaudeProvider, OllamaProvider
+
+
+def _fake_anthropic_response(text: str):
+    message = MagicMock()
+    message.content = [MagicMock(text=text)]
+    return message
+
+
+def test_claude_provider_uses_haiku_for_classify_tier():
+    fake_client = MagicMock()
+    fake_client.messages.create.return_value = _fake_anthropic_response('{"ok": true}')
+    provider = ClaudeProvider(fake_client)
+
+    result = provider.complete("system prompt", "user prompt", tier="classify")
+
+    assert result == '{"ok": true}'
+    call_kwargs = fake_client.messages.create.call_args.kwargs
+    assert call_kwargs["model"] == "claude-haiku-4-5-20251001"
+
+
+def test_claude_provider_uses_sonnet_for_synthesis_tier():
+    fake_client = MagicMock()
+    fake_client.messages.create.return_value = _fake_anthropic_response('{"ok": true}')
+    provider = ClaudeProvider(fake_client)
+
+    provider.complete("system prompt", "user prompt", tier="synthesis")
+
+    call_kwargs = fake_client.messages.create.call_args.kwargs
+    assert call_kwargs["model"] == "claude-sonnet-5"
+
+
+def test_ollama_provider_posts_to_local_endpoint_and_returns_response_text():
+    with patch("dd_copilot.providers.requests.post") as mock_post:
+        mock_post.return_value.json.return_value = {"message": {"content": '{"ok": true}'}}
+        mock_post.return_value.raise_for_status = MagicMock()
+        provider = OllamaProvider(model="llama3.1")
+
+        result = provider.complete("system prompt", "user prompt", tier="classify")
+
+        assert result == '{"ok": true}'
+        call_args = mock_post.call_args
+        assert "localhost:11434" in call_args.args[0]
+        assert call_args.kwargs["json"]["model"] == "llama3.1"
+```
+
+- [ ] **Step 2: Ejecutar y verificar que fallan**
+
+Run: `pytest tests/test_providers.py -v`
+Expected: FAIL con `ModuleNotFoundError: No module named 'dd_copilot.providers'`
+
+- [ ] **Step 3: Implementar `dd_copilot/providers.py`**
+
+```python
+from typing import Literal, Protocol
+
+import requests
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+Tier = Literal["classify", "synthesis"]
+
+
+class LLMProvider(Protocol):
+    def complete(self, system_prompt: str, user_prompt: str, tier: Tier) -> str: ...
+
+
+class ClaudeProvider:
+    """Claude via the official Anthropic SDK, with a cost-saving cascade:
+    Haiku for per-chunk classification, Sonnet only for final synthesis.
+    """
+
+    CLASSIFY_MODEL = "claude-haiku-4-5-20251001"
+    SYNTHESIS_MODEL = "claude-sonnet-5"
+
+    def __init__(self, client):
+        self.client = client
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+    def complete(self, system_prompt: str, user_prompt: str, tier: Tier) -> str:
+        model = self.CLASSIFY_MODEL if tier == "classify" else self.SYNTHESIS_MODEL
+        message = self.client.messages.create(
+            model=model,
+            max_tokens=512,
+            system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        return message.content[0].text
+
+
+class OllamaProvider:
+    """Local, zero-cost LLM via Ollama. Uses the same local model for both
+    tiers (no cascade needed — there is no per-token cost to optimize)."""
+
+    def __init__(self, model: str = "llama3.1", host: str = "http://localhost:11434"):
+        self.model = model
+        self.host = host
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+    def complete(self, system_prompt: str, user_prompt: str, tier: Tier) -> str:
+        response = requests.post(
+            f"{self.host}/api/chat",
+            json={
+                "model": self.model,
+                "stream": False,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            },
+            timeout=120,
+        )
+        response.raise_for_status()
+        return response.json()["message"]["content"]
+```
+
+- [ ] **Step 4: Ejecutar y verificar que pasan**
+
+Run: `pytest tests/test_providers.py -v`
+Expected: 3 passed
+
+- [ ] **Step 5: Refactorizar `dd_copilot/extract.py` para usar `LLMProvider`**
+
+Reemplazar toda referencia a `client` y `_call_claude` por `provider: LLMProvider`
+y `provider.complete(SYSTEM_PROMPT, prompt, tier=...)` (`tier="classify"` en
+`extract_field`/`extract_risks`, `tier="synthesis"` en `synthesize_confidence`).
+`_call_claude` y las constantes `CLASSIFY_MODEL`/`SYNTHESIS_MODEL` se eliminan
+de `extract.py` (ahora viven en `providers.py`). `run_extraction` pasa a
+recibir `provider` en vez de `client`. Actualizar `tests/test_extract.py`
+para mockear un `provider` (objeto con `.complete` mockeado) en vez del
+cliente Anthropic — el `side_effect` de `provider.complete` devuelve
+directamente los strings JSON (no objetos `message.content[0].text`).
+
+- [ ] **Step 6: Ejecutar tests de `extract.py`, verificar que pasan**
+
+Run: `pytest tests/test_extract.py -v`
+Expected: 1 passed
+
+- [ ] **Step 7: Refactorizar `dd_copilot/pipeline.py`**
+
+`analyze(source: str, provider: LLMProvider) -> str` (renombrar el
+parámetro `client` a `provider`). Actualizar `tests/test_pipeline.py` para
+mockear un `provider.complete`.
+
+- [ ] **Step 8: Ejecutar tests de `pipeline.py`, verificar que pasan**
+
+Run: `pytest tests/test_pipeline.py -v`
+Expected: 1 passed
+
+- [ ] **Step 9: Refactorizar `dd_copilot/cli.py`**
+
+Añadir opción `--provider` (`claude` por defecto, o `ollama`) al comando
+`analyze`. Sustituir `build_anthropic_client()` por `build_provider(name: str) -> LLMProvider`,
+que construye `ClaudeProvider(Anthropic(api_key=...))` si `name == "claude"`,
+o `OllamaProvider()` si `name == "ollama"` (sin API key). Actualizar
+`tests/test_cli.py` para parchear `dd_copilot.cli.build_provider` en vez de
+`build_anthropic_client`, y para cubrir ambos valores de `--provider`.
+
+- [ ] **Step 10: Ejecutar tests de `cli.py`, verificar que pasan**
+
+Run: `pytest tests/test_cli.py -v`
+Expected: pasan (incluye caso `--provider ollama`)
+
+- [ ] **Step 11: Añadir selector de proveedor en `app.py` (Streamlit)**
+
+Añadir `st.radio("LLM provider", ["Claude", "Ollama (local)"], horizontal=True)`
+antes del botón "Analyze", y usar `build_provider("claude")` o
+`build_provider("ollama")` según la selección, en vez de siempre
+`build_anthropic_client()`.
+
+- [ ] **Step 12: Ejecutar la suite completa, verificar cero regresiones**
+
+Run: `pytest -q`
+Expected: todos los tests pasan (incluye los ya existentes de Tasks 1-11).
+
+- [ ] **Step 13: Commit**
+
+```bash
+git add dd_copilot/providers.py dd_copilot/extract.py dd_copilot/pipeline.py dd_copilot/cli.py app.py tests/
+git commit -m "feat: abstraccion de proveedor LLM (Claude por defecto + Ollama local)"
 ```
 
 ---
