@@ -630,8 +630,8 @@ from dd_copilot.index import build_index
 from dd_copilot.extract import run_extraction
 
 SOURCE_TEXT = (
-    "Isomorphic Labs combina inteligencia artificial y biología para acelerar "
-    "el descubrimiento de fármacos. La compañía es un spin-off de DeepMind."
+    "Isomorphic Labs combines artificial intelligence and biology to accelerate "
+    "drug discovery. The company is a DeepMind spin-off."
 )
 
 
