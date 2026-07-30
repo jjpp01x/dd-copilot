@@ -542,12 +542,21 @@ def test_retrieve_relevant_chunks_returns_most_similar_node():
             "The company was founded as a DeepMind spin-off in 2021."
         ),
     )
-    nodes = chunk_document(doc, chunk_size=40, chunk_overlap=5)
+    nodes = chunk_document(doc, chunk_size=20, chunk_overlap=5)
     index = build_index(nodes)
-    results = retrieve_relevant_chunks(index, "What AI technology does the company use?", top_k=1)
+    results = retrieve_relevant_chunks(index, "How does the startup predict protein structures?", top_k=1)
     assert len(results) == 1
     assert "deep learning" in results[0].get_content() or "protein" in results[0].get_content()
 ```
+
+**Nota (segunda corrección, tras hallazgo del revisor):** con `chunk_size=40`
+el `SentenceSplitter` mezclaba dos frases no relacionadas en un mismo
+chunk (no respeta límites de oración con ese tamaño), y la query genérica
+"What AI technology..." no discriminaba bien con `all-MiniLM-L6-v2`. Se
+corrigió a `chunk_size=20` (un chunk por frase, verificado) y a una query
+más específica que sí referencia el contenido real del chunk correcto
+("predict protein structures"), manteniendo la aserción original y
+estricta de `top_k=1` — sin relajar el test a `top_k=2`.
 
 **Nota (post-desviación en la primera ejecución de esta tarea):** la
 versión original de este test usaba texto y query en español, lo que
