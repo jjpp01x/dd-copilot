@@ -32,3 +32,13 @@ def test_ingest_dispatches_to_url_when_source_starts_with_http(monkeypatch):
     doc = ingest("https://isomorphiclabs.com")
     assert doc.source_name == "https://isomorphiclabs.com"
     assert doc.text == "contenido de la web"
+
+def test_ingest_reads_local_text_file_by_path_instead_of_treating_path_as_content(tmp_path):
+    source_file = tmp_path / "source.txt"
+    source_file.write_text("Isomorphic Labs combines AI and biology to accelerate drug discovery.")
+
+    doc = ingest(str(source_file))
+
+    assert doc.source_name == "source.txt"
+    assert "Isomorphic Labs combines AI and biology" in doc.text
+    assert str(source_file) not in doc.text
