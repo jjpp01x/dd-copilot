@@ -31,4 +31,8 @@ def analyze_command(
     console.print(f"[bold green]Report generated:[/bold green] {output}")
 
 
+# Typer collapses a Typer() app with a single @app.command() into a bare
+# root command (no subcommand name required/accepted). Registering the same
+# function again under an explicit name keeps `ddcopilot analyze <source>`
+# working as a named subcommand instead of `ddcopilot <source>`.
 app.command(name="analyze")(analyze_command)
