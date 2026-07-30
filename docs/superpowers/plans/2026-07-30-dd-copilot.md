@@ -356,13 +356,26 @@ def ingest_url(url: str) -> Document:
 
 
 def ingest(source: str) -> Document:
-    """Detecta si `source` es una URL, una ruta a PDF, o texto en bruto, y despacha."""
+    """Detecta si `source` es una URL, una ruta a un fichero local (PDF o texto), o texto en bruto, y despacha."""
     if source.startswith("http://") or source.startswith("https://"):
         return ingest_url(source)
-    if source.lower().endswith(".pdf") and os.path.exists(source):
-        return ingest_pdf(source)
+    if os.path.exists(source):
+        if source.lower().endswith(".pdf"):
+            return ingest_pdf(source)
+        with open(source, encoding="utf-8") as f:
+            return ingest_text(f.read(), source_name=os.path.basename(source))
     return ingest_text(source)
 ```
+
+**Nota (hallazgo real durante la Task 12, demo con Isomorphic Labs):** la
+versión original solo reconocía ficheros locales con extensión `.pdf`;
+una ruta a un `.txt` existente caía por defecto en `ingest_text(source)`,
+tratando la **ruta como si fuera el contenido literal** en vez de leer el
+fichero. Esto causó que la primera ejecución real de la demo analizara el
+string del path (p.ej. `"examples/isomorphic-labs/source.txt"`) en lugar
+del contenido real, y el LLM alucinó un informe completo sin relación con
+Isomorphic Labs. Corregido para que cualquier ruta de fichero existente
+(no solo `.pdf`) se lea como texto por defecto.
 
 - [ ] **Step 4: Ejecutar y verificar que pasa**
 
