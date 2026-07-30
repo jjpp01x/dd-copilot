@@ -16,7 +16,7 @@ RISK_LABELS = {
 
 def _render_field(label: str, field: ChecklistField) -> str:
     if not field.mentioned:
-        return f"- **{label}:** not mentioned in the source."
+        return f"- **{label}:** Not mentioned in the source."
     citations = "; ".join(f'"{c.text}"' for c in field.citations)
     return f"- **{label}:** {field.value} (citation: {citations})"
 
