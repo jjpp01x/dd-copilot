@@ -22,14 +22,16 @@ the two interfaces.
 - Solo Claude vía el SDK oficial de Anthropic — ningún otro proveedor de LLM.
 - RAG con LlamaIndex: `SentenceSplitter` para chunking semántico + `VectorStoreIndex` en memoria (sin base vectorial externa).
 - Embeddings locales: `HuggingFaceEmbedding` con modelo `sentence-transformers/all-MiniLM-L6-v2` (coste cero de API en indexado).
+- **Idioma del producto: inglés.** Todos los prompts enviados a Claude, las claves/etiquetas del checklist, y la plantilla del informe generado están en inglés (decisión post-Task 6: evita el problema de retrieval cross-lingual con `all-MiniLM-L6-v2`, que es un modelo solo-inglés). `README.md` también en inglés. Excepción: la documentación de uso para el usuario se entrega en dos ficheros — `GUIA-DE-USO.md` (español) y `USER-GUIDE.md` (inglés), mismo contenido en ambos.
+- Checklist de riesgos con claves en inglés: `trl_maturity`, `hardware_dependency`, `reproducibility`, `regulatory_risk` (reemplaza los nombres en español usados provisionalmente en la Tarea 2).
 - Cascada de modelos: **Claude Haiku** (`claude-haiku-4-5-20251001`) para clasificación/extracción por chunk; **Claude Sonnet** (`claude-sonnet-5`) solo para la síntesis final del informe.
 - Prompt caching de Anthropic para el system prompt fijo, reutilizado en todas las llamadas de un mismo análisis.
-- Cada afirmación del informe debe llevar una cita verificada contra el texto fuente (fuzzy match); si no hay evidencia verificable, el campo se marca `mentioned=False` y el informe dice explícitamente "no mencionado en la fuente" — nunca se inventa contenido.
+- Cada afirmación del informe debe llevar una cita verificada contra el texto fuente (fuzzy match); si no hay evidencia verificable, el campo se marca `mentioned=False` y el informe dice explícitamente "Not mentioned in the source" — nunca se inventa contenido.
 - Reintentos con backoff exponencial (máx. 3 intentos) en cada llamada a la API de Claude.
 - Los tests deben mockear la llamada a Claude — cero gasto de tokens reales en la suite de tests.
 - Repo en `~/Projects/dd-copilot`, publicado en GitHub público como `jjpp01x/dd-copilot`.
-- Entregables de documentación: `README.md` técnico (explica el "por qué" de cada decisión de arquitectura) y `GUIA-DE-USO.md` en español, sin jerga sin definir, para que un principiante en IA entienda, instale y pruebe la herramienta.
-- Demo: startup **Isomorphic Labs**, informe guardado en `examples/isomorphic-labs/informe.md`.
+- Entregables de documentación: `README.md` (inglés) técnico (explica el "por qué" de cada decisión de arquitectura), `GUIA-DE-USO.md` (español) y `USER-GUIDE.md` (inglés) — mismo contenido, sin jerga sin definir, para que un principiante en IA entienda, instale y pruebe la herramienta.
+- Demo: startup **Isomorphic Labs**, informe guardado en `examples/isomorphic-labs/report.md`.
 - Fuera de alcance (no implementar): comparación entre startups, scoring ponderado entre startups, soporte multi-proveedor de LLM.
 
 ---
@@ -61,13 +63,14 @@ dd-copilot/
 │   └── test_pipeline.py
 ├── examples/
 │   └── isomorphic-labs/
-│       ├── fuente.txt
-│       └── informe.md
+│       ├── source.txt
+│       └── report.md
 ├── pyproject.toml
 ├── .env.example
 ├── .gitignore
 ├── README.md
-└── GUIA-DE-USO.md
+├── GUIA-DE-USO.md
+└── USER-GUIDE.md
 ```
 
 ---
@@ -181,21 +184,21 @@ def test_checklist_field_defaults_to_not_mentioned():
     assert field.citations == []
 
 def test_extraction_result_holds_all_checklist_fields():
-    problema = ChecklistField(value="Resuelve X", citations=[Citation(text="cita literal", source_chunk_id="chunk-1")], mentioned=True)
-    diferenciacion = ChecklistField(value="", citations=[], mentioned=False)
-    rendimiento = ChecklistField(value="", citations=[], mentioned=False)
-    riesgo = RiskChecklistItem(risk_name="madurez_trl", mentioned=False)
-    result = ExtractionResult(problema=problema, diferenciacion=diferenciacion, rendimiento=rendimiento, riesgos=[riesgo])
-    assert result.problema.value == "Resuelve X"
-    assert result.riesgos[0].risk_name == "madurez_trl"
+    problem = ChecklistField(value="Solves X", citations=[Citation(text="literal citation", source_chunk_id="chunk-1")], mentioned=True)
+    differentiation = ChecklistField(value="", citations=[], mentioned=False)
+    performance = ChecklistField(value="", citations=[], mentioned=False)
+    risk = RiskChecklistItem(risk_name="trl_maturity", mentioned=False)
+    result = ExtractionResult(problem=problem, differentiation=differentiation, performance=performance, risks=[risk])
+    assert result.problem.value == "Solves X"
+    assert result.risks[0].risk_name == "trl_maturity"
 
 def test_report_input_confidence_score_range():
     import pytest
     from pydantic import ValidationError
-    problema = ChecklistField(value="x", citations=[], mentioned=True)
-    result = ExtractionResult(problema=problema, diferenciacion=problema, rendimiento=problema, riesgos=[])
+    problem = ChecklistField(value="x", citations=[], mentioned=True)
+    result = ExtractionResult(problem=problem, differentiation=problem, performance=problem, risks=[])
     with pytest.raises(ValidationError):
-        ReportInput(source_name="demo", extraction=result, confidence_score=6, confidence_justification="fuera de rango")
+        ReportInput(source_name="demo", extraction=result, confidence_score=6, confidence_justification="out of range")
 ```
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
@@ -222,10 +225,10 @@ class ChecklistField(BaseModel):
 
 
 RiskName = Literal[
-    "madurez_trl",
-    "dependencia_hardware",
-    "reproducibilidad",
-    "riesgo_regulatorio",
+    "trl_maturity",
+    "hardware_dependency",
+    "reproducibility",
+    "regulatory_risk",
 ]
 
 
@@ -237,10 +240,10 @@ class RiskChecklistItem(BaseModel):
 
 
 class ExtractionResult(BaseModel):
-    problema: ChecklistField
-    diferenciacion: ChecklistField
-    rendimiento: ChecklistField
-    riesgos: list[RiskChecklistItem]
+    problem: ChecklistField
+    differentiation: ChecklistField
+    performance: ChecklistField
+    risks: list[RiskChecklistItem]
 
 
 class ReportInput(BaseModel):
@@ -534,17 +537,24 @@ def test_retrieve_relevant_chunks_returns_most_similar_node():
     doc = Document(
         source_name="demo",
         text=(
-            "Isomorphic Labs usa modelos de deep learning para predecir la estructura de proteínas. "
-            "El equipo de marketing organiza eventos anuales en Londres para inversores. "
-            "La compañía fue fundada como spin-off de DeepMind en 2021."
+            "Isomorphic Labs uses deep learning models to predict protein structure. "
+            "The marketing team organizes annual events in London for investors. "
+            "The company was founded as a DeepMind spin-off in 2021."
         ),
     )
     nodes = chunk_document(doc, chunk_size=40, chunk_overlap=5)
     index = build_index(nodes)
-    results = retrieve_relevant_chunks(index, "¿Qué tecnología de IA usa la empresa?", top_k=1)
+    results = retrieve_relevant_chunks(index, "What AI technology does the company use?", top_k=1)
     assert len(results) == 1
-    assert "deep learning" in results[0].get_content() or "proteínas" in results[0].get_content()
+    assert "deep learning" in results[0].get_content() or "protein" in results[0].get_content()
 ```
+
+**Nota (post-desviación en la primera ejecución de esta tarea):** la
+versión original de este test usaba texto y query en español, lo que
+expuso que `all-MiniLM-L6-v2` (modelo solo-inglés) falla el retrieval en
+español. Con la decisión de idioma del producto en inglés, el test y el
+corpus quedan en inglés y el modelo original vuelve a funcionar
+correctamente — no se necesita un modelo multilingüe.
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
 
@@ -636,30 +646,30 @@ def test_run_extraction_marks_field_as_not_mentioned_when_citation_is_fabricated
     fake_client = MagicMock()
 
     haiku_payload = {
-        "value": "Resuelve el descubrimiento de fármacos.",
-        "citation": "cura enfermedades raras en 24 horas",
+        "value": "Solves drug discovery.",
+        "citation": "cures rare diseases in 24 hours",
         "mentioned": True,
     }
     sonnet_payload = {
         "confidence_score": 3,
-        "confidence_justification": "El material público es limitado.",
+        "confidence_justification": "Public material is limited.",
     }
 
     fake_client.messages.create.side_effect = [
-        _fake_haiku_response(haiku_payload),  # problema
-        _fake_haiku_response({"value": "", "citation": "", "mentioned": False}),  # diferenciacion
-        _fake_haiku_response({"value": "", "citation": "", "mentioned": False}),  # rendimiento
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # riesgo 1
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # riesgo 2
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # riesgo 3
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # riesgo 4
-        _fake_sonnet_response(sonnet_payload),  # sintesis final
+        _fake_haiku_response(haiku_payload),  # problem
+        _fake_haiku_response({"value": "", "citation": "", "mentioned": False}),  # differentiation
+        _fake_haiku_response({"value": "", "citation": "", "mentioned": False}),  # performance
+        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 1
+        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 2
+        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 3
+        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 4
+        _fake_sonnet_response(sonnet_payload),  # final synthesis
     ]
 
     result = run_extraction(fake_client, index, SOURCE_TEXT, "isomorphic-labs")
 
-    assert result.extraction.problema.mentioned is False
-    assert result.extraction.problema.citations == []
+    assert result.extraction.problem.mentioned is False
+    assert result.extraction.problem.citations == []
     assert result.confidence_score == 3
 ```
 
@@ -691,23 +701,23 @@ CLASSIFY_MODEL = "claude-haiku-4-5-20251001"
 SYNTHESIS_MODEL = "claude-sonnet-5"
 
 SYSTEM_PROMPT = (
-    "Eres un analista técnico de due diligence para inversión en deep-tech. "
-    "Solo puedes afirmar lo que está literalmente en el texto que se te da. "
-    "Si algo no está explícito, responde mentioned=false y citation vacía. "
-    "Responde siempre en JSON válido, sin texto adicional."
+    "You are a technical due-diligence analyst for deep-tech investment. "
+    "You may only state what is literally in the text you are given. "
+    "If something is not explicit, respond mentioned=false and an empty citation. "
+    "Always respond in valid JSON, with no additional text."
 )
 
 FIELD_QUESTIONS = {
-    "problema": "¿Qué problema resuelve la tecnología de esta startup?",
-    "diferenciacion": "¿Qué diferencia técnicamente a esta tecnología de sus alternativas?",
-    "rendimiento": "¿Qué afirmaciones de rendimiento o escalabilidad hace la startup?",
+    "problem": "What problem does this startup's technology solve?",
+    "differentiation": "What technically differentiates this technology from alternatives?",
+    "performance": "What performance or scalability claims does the startup make?",
 }
 
 RISK_QUESTIONS: dict[RiskName, str] = {
-    "madurez_trl": "¿Se menciona el nivel de madurez tecnológica (TRL) de la tecnología?",
-    "dependencia_hardware": "¿Se menciona dependencia de hardware o proveedores específicos?",
-    "reproducibilidad": "¿Se menciona si los resultados son reproducibles o han sido validados externamente?",
-    "riesgo_regulatorio": "¿Se menciona algún riesgo regulatorio aplicable a esta tecnología?",
+    "trl_maturity": "Is the technology's readiness level (TRL) mentioned?",
+    "hardware_dependency": "Is dependency on specific hardware or vendors mentioned?",
+    "reproducibility": "Is it mentioned whether results are reproducible or have been externally validated?",
+    "regulatory_risk": "Is any applicable regulatory risk for this technology mentioned?",
 }
 
 
@@ -738,8 +748,8 @@ def extract_field(client, field_name: str, question: str, index: VectorStoreInde
     nodes = retrieve_relevant_chunks(index, question, top_k=5)
     context = "\n\n".join(node.get_content() for node in nodes)
     prompt = (
-        f"Pregunta: {question}\n\nTexto fuente (fragmentos relevantes):\n{context}\n\n"
-        'Responde en JSON: {"value": str, "citation": str, "mentioned": bool}'
+        f"Question: {question}\n\nSource text (relevant excerpts):\n{context}\n\n"
+        'Respond in JSON: {"value": str, "citation": str, "mentioned": bool}'
     )
     payload = _call_claude(client, CLASSIFY_MODEL, prompt)
     return _build_field_from_response(payload, source_text)
@@ -751,8 +761,8 @@ def extract_risks(client, index: VectorStoreIndex, source_text: str) -> list[Ris
         nodes = retrieve_relevant_chunks(index, question, top_k=3)
         context = "\n\n".join(node.get_content() for node in nodes)
         prompt = (
-            f"Pregunta: {question}\n\nTexto fuente (fragmentos relevantes):\n{context}\n\n"
-            'Responde en JSON: {"mentioned": bool, "detail": str o null, "citation": str}'
+            f"Question: {question}\n\nSource text (relevant excerpts):\n{context}\n\n"
+            'Respond in JSON: {"mentioned": bool, "detail": str or null, "citation": str}'
         )
         payload = _call_claude(client, CLASSIFY_MODEL, prompt)
         citation_text = payload.get("citation", "") or ""
@@ -771,26 +781,26 @@ def extract_risks(client, index: VectorStoreIndex, source_text: str) -> list[Ris
 def synthesize_confidence(client, extraction: ExtractionResult) -> tuple[int, str]:
     summary = extraction.model_dump_json()
     prompt = (
-        f"Datos extraídos ya estructurados (no texto en bruto):\n{summary}\n\n"
-        'Da un nivel de confianza del análisis (1-5) y su justificación. '
-        'Responde en JSON: {"confidence_score": int, "confidence_justification": str}'
+        f"Already-structured extracted data (not raw text):\n{summary}\n\n"
+        'Give a confidence level for the analysis (1-5) and its justification. '
+        'Respond in JSON: {"confidence_score": int, "confidence_justification": str}'
     )
     payload = _call_claude(client, SYNTHESIS_MODEL, prompt)
     return payload["confidence_score"], payload["confidence_justification"]
 
 
 def run_extraction(client, index: VectorStoreIndex, source_text: str, source_name: str) -> ReportInput:
-    """Ejecuta la cascada Haiku (por campo) -> Sonnet (síntesis final)."""
-    problema = extract_field(client, "problema", FIELD_QUESTIONS["problema"], index, source_text)
-    diferenciacion = extract_field(client, "diferenciacion", FIELD_QUESTIONS["diferenciacion"], index, source_text)
-    rendimiento = extract_field(client, "rendimiento", FIELD_QUESTIONS["rendimiento"], index, source_text)
-    riesgos = extract_risks(client, index, source_text)
+    """Runs the Haiku (per-field) -> Sonnet (final synthesis) cascade."""
+    problem = extract_field(client, "problem", FIELD_QUESTIONS["problem"], index, source_text)
+    differentiation = extract_field(client, "differentiation", FIELD_QUESTIONS["differentiation"], index, source_text)
+    performance = extract_field(client, "performance", FIELD_QUESTIONS["performance"], index, source_text)
+    risks = extract_risks(client, index, source_text)
 
     extraction = ExtractionResult(
-        problema=problema,
-        diferenciacion=diferenciacion,
-        rendimiento=rendimiento,
-        riesgos=riesgos,
+        problem=problem,
+        differentiation=differentiation,
+        performance=performance,
+        risks=risks,
     )
 
     confidence_score, confidence_justification = synthesize_confidence(client, extraction)
@@ -835,22 +845,22 @@ from dd_copilot.models import Citation, ChecklistField, RiskChecklistItem, Extra
 from dd_copilot.report import render_report
 
 def test_render_report_includes_all_five_fixed_sections():
-    problema = ChecklistField(value="Acelera el descubrimiento de fármacos.", citations=[Citation(text="acelerar el descubrimiento de fármacos", source_chunk_id="c1")], mentioned=True)
-    vacio = ChecklistField(value="", citations=[], mentioned=False)
-    riesgo_no_mencionado = RiskChecklistItem(risk_name="madurez_trl", mentioned=False)
-    extraction = ExtractionResult(problema=problema, diferenciacion=vacio, rendimiento=vacio, riesgos=[riesgo_no_mencionado])
-    report_input = ReportInput(source_name="isomorphic-labs", extraction=extraction, confidence_score=3, confidence_justification="Material público limitado.")
+    problem = ChecklistField(value="Accelerates drug discovery.", citations=[Citation(text="accelerates drug discovery", source_chunk_id="c1")], mentioned=True)
+    empty = ChecklistField(value="", citations=[], mentioned=False)
+    unmentioned_risk = RiskChecklistItem(risk_name="trl_maturity", mentioned=False)
+    extraction = ExtractionResult(problem=problem, differentiation=empty, performance=empty, risks=[unmentioned_risk])
+    report_input = ReportInput(source_name="isomorphic-labs", extraction=extraction, confidence_score=3, confidence_justification="Public material is limited.")
 
     markdown = render_report(report_input)
 
-    assert "# Informe de Due Diligence Técnica — isomorphic-labs" in markdown
-    assert "## 1. Resumen ejecutivo" in markdown
-    assert "## 2. Qué dice la startup" in markdown
-    assert "## 3. Qué no dice" in markdown
-    assert "## 4. Preguntas para la siguiente llamada con el fundador" in markdown
-    assert "## 5. Nivel de confianza del análisis" in markdown
-    assert "acelerar el descubrimiento de fármacos" in markdown
-    assert "madurez_trl" in markdown
+    assert "# Technical Due Diligence Report — isomorphic-labs" in markdown
+    assert "## 1. Executive Summary" in markdown
+    assert "## 2. What the Startup Says" in markdown
+    assert "## 3. What It Doesn't Say" in markdown
+    assert "## 4. Questions for the Next Founder Call" in markdown
+    assert "## 5. Confidence Level" in markdown
+    assert "accelerates drug discovery" in markdown
+    assert "trl_maturity" in markdown
 ```
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
@@ -864,62 +874,62 @@ Expected: FAIL con `ModuleNotFoundError: No module named 'dd_copilot.report'`
 from dd_copilot.models import ReportInput, ChecklistField, RiskChecklistItem
 
 FIELD_LABELS = {
-    "problema": "Problema que resuelve",
-    "diferenciacion": "Diferenciación técnica",
-    "rendimiento": "Afirmaciones de rendimiento/escalabilidad",
+    "problem": "Problem it solves",
+    "differentiation": "Technical differentiation",
+    "performance": "Performance/scalability claims",
 }
 
 RISK_LABELS = {
-    "madurez_trl": "Madurez tecnológica (TRL)",
-    "dependencia_hardware": "Dependencia de hardware/proveedor",
-    "reproducibilidad": "Reproducibilidad de resultados",
-    "riesgo_regulatorio": "Riesgo regulatorio",
+    "trl_maturity": "Technology readiness level (TRL)",
+    "hardware_dependency": "Hardware/vendor dependency",
+    "reproducibility": "Reproducibility of results",
+    "regulatory_risk": "Regulatory risk",
 }
 
 
 def _render_field(label: str, field: ChecklistField) -> str:
     if not field.mentioned:
-        return f"- **{label}:** no mencionado en la fuente."
-    citas = "; ".join(f'"{c.text}"' for c in field.citations)
-    return f"- **{label}:** {field.value} (cita: {citas})"
+        return f"- **{label}:** not mentioned in the source."
+    citations = "; ".join(f'"{c.text}"' for c in field.citations)
+    return f"- **{label}:** {field.value} (citation: {citations})"
 
 
 def _render_risk(risk: RiskChecklistItem) -> str:
     label = RISK_LABELS[risk.risk_name]
     if not risk.mentioned:
-        return f"- **{risk.risk_name}** ({label}): no mencionado — pregunta pendiente para el fundador."
+        return f"- **{risk.risk_name}** ({label}): not mentioned — pending question for the founder."
     return f"- **{risk.risk_name}** ({label}): {risk.detail}"
 
 
 def render_report(report_input: ReportInput) -> str:
     extraction = report_input.extraction
 
-    dice_lines = [
-        _render_field(FIELD_LABELS["problema"], extraction.problema),
-        _render_field(FIELD_LABELS["diferenciacion"], extraction.diferenciacion),
-        _render_field(FIELD_LABELS["rendimiento"], extraction.rendimiento),
+    says_lines = [
+        _render_field(FIELD_LABELS["problem"], extraction.problem),
+        _render_field(FIELD_LABELS["differentiation"], extraction.differentiation),
+        _render_field(FIELD_LABELS["performance"], extraction.performance),
     ]
 
-    no_dice_lines = [_render_risk(r) for r in extraction.riesgos if not r.mentioned]
-    if not no_dice_lines:
-        no_dice_lines = ["- Todos los riesgos del checklist están cubiertos por la fuente."]
+    doesnt_say_lines = [_render_risk(r) for r in extraction.risks if not r.mentioned]
+    if not doesnt_say_lines:
+        doesnt_say_lines = ["- All checklist risks are covered by the source."]
 
-    preguntas_lines = [
-        f"- Sobre {RISK_LABELS[r.risk_name].lower()}: no está documentado, ¿puede el equipo aclararlo?"
-        for r in extraction.riesgos
+    question_lines = [
+        f"- On {RISK_LABELS[r.risk_name].lower()}: not documented, can the team clarify?"
+        for r in extraction.risks
         if not r.mentioned
     ]
-    if not preguntas_lines:
-        preguntas_lines = ["- Sin preguntas pendientes del checklist fijo; profundizar en detalles cuantitativos de rendimiento."]
+    if not question_lines:
+        question_lines = ["- No pending questions from the fixed checklist; dig deeper into quantitative performance details."]
 
     return "\n\n".join(
         [
-            f"# Informe de Due Diligence Técnica — {report_input.source_name}",
-            "## 1. Resumen ejecutivo\n\n" + (extraction.problema.value or "No hay suficiente información pública para un resumen ejecutivo."),
-            "## 2. Qué dice la startup\n\n" + "\n".join(dice_lines),
-            "## 3. Qué no dice\n\n" + "\n".join(no_dice_lines),
-            "## 4. Preguntas para la siguiente llamada con el fundador\n\n" + "\n".join(preguntas_lines),
-            "## 5. Nivel de confianza del análisis\n\n"
+            f"# Technical Due Diligence Report — {report_input.source_name}",
+            "## 1. Executive Summary\n\n" + (extraction.problem.value or "Not enough public information for an executive summary."),
+            "## 2. What the Startup Says\n\n" + "\n".join(says_lines),
+            "## 3. What It Doesn't Say\n\n" + "\n".join(doesnt_say_lines),
+            "## 4. Questions for the Next Founder Call\n\n" + "\n".join(question_lines),
+            "## 5. Confidence Level\n\n"
             f"**{report_input.confidence_score}/5** — {report_input.confidence_justification}",
         ]
     )
@@ -959,8 +969,8 @@ from unittest.mock import MagicMock
 from dd_copilot.pipeline import analyze
 
 SOURCE_TEXT = (
-    "Isomorphic Labs combina inteligencia artificial y biología para acelerar "
-    "el descubrimiento de fármacos. La compañía es un spin-off de DeepMind fundado en 2021."
+    "Isomorphic Labs combines artificial intelligence and biology to accelerate "
+    "drug discovery. The company is a DeepMind spin-off founded in 2021."
 )
 
 
@@ -973,20 +983,20 @@ def _response(payload: dict):
 def test_analyze_returns_markdown_with_fixed_sections():
     fake_client = MagicMock()
     fake_client.messages.create.side_effect = [
-        _response({"value": "Acelera el descubrimiento de fármacos.", "citation": "acelerar el descubrimiento de fármacos", "mentioned": True}),
+        _response({"value": "Accelerates drug discovery.", "citation": "accelerate drug discovery", "mentioned": True}),
         _response({"value": "", "citation": "", "mentioned": False}),
         _response({"value": "", "citation": "", "mentioned": False}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
-        _response({"confidence_score": 3, "confidence_justification": "Material público limitado."}),
+        _response({"confidence_score": 3, "confidence_justification": "Public material is limited."}),
     ]
 
     markdown = analyze(SOURCE_TEXT, fake_client)
 
-    assert "# Informe de Due Diligence Técnica" in markdown
-    assert "acelerar el descubrimiento de fármacos" in markdown
+    assert "# Technical Due Diligence Report" in markdown
+    assert "accelerate drug discovery" in markdown
 ```
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
@@ -1057,25 +1067,25 @@ def _response(payload: dict):
 
 
 def test_analyze_command_writes_markdown_file(tmp_path):
-    output_path = tmp_path / "informe.md"
+    output_path = tmp_path / "report.md"
     fake_client = MagicMock()
     fake_client.messages.create.side_effect = [
-        _response({"value": "Resuelve X.", "citation": "Resuelve X.", "mentioned": True}),
+        _response({"value": "Solves X.", "citation": "Solves X.", "mentioned": True}),
         _response({"value": "", "citation": "", "mentioned": False}),
         _response({"value": "", "citation": "", "mentioned": False}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
         _response({"mentioned": False, "detail": None, "citation": ""}),
-        _response({"confidence_score": 2, "confidence_justification": "Poco material."}),
+        _response({"confidence_score": 2, "confidence_justification": "Little material."}),
     ]
 
     with patch("dd_copilot.cli.build_anthropic_client", return_value=fake_client):
-        result = runner.invoke(app, ["analyze", "Texto de prueba sobre una startup que resuelve X.", "--output", str(output_path)])
+        result = runner.invoke(app, ["analyze", "Test text about a startup that solves X.", "--output", str(output_path)])
 
     assert result.exit_code == 0
     assert output_path.exists()
-    assert "Informe de Due Diligence Técnica" in output_path.read_text()
+    assert "Technical Due Diligence Report" in output_path.read_text()
 ```
 
 - [ ] **Step 2: Ejecutar y verificar que falla**
@@ -1107,16 +1117,16 @@ def build_anthropic_client() -> Anthropic:
 
 @app.command()
 def analyze_command(
-    source: str = typer.Argument(..., help="URL, ruta a PDF, o texto pegado directamente."),
-    output: str = typer.Option("informe.md", "--output", "-o", help="Ruta del fichero Markdown de salida."),
+    source: str = typer.Argument(..., help="URL, path to a PDF, or raw pasted text."),
+    output: str = typer.Option("report.md", "--output", "-o", help="Path to the output Markdown file."),
 ) -> None:
-    """Analiza `source` y genera un informe de due diligence técnica en Markdown."""
+    """Analyzes `source` and generates a technical due-diligence report in Markdown."""
     client = build_anthropic_client()
-    console.print(f"[bold]Analizando:[/bold] {source[:80]}...")
+    console.print(f"[bold]Analyzing:[/bold] {source[:80]}...")
     markdown = analyze(source, client)
     with open(output, "w", encoding="utf-8") as f:
         f.write(markdown)
-    console.print(f"[bold green]Informe generado:[/bold green] {output}")
+    console.print(f"[bold green]Report generated:[/bold green] {output}")
 
 
 app.command(name="analyze")(analyze_command)
@@ -1154,30 +1164,30 @@ from dd_copilot.cli import build_anthropic_client
 from dd_copilot.pipeline import analyze
 
 st.set_page_config(page_title="DD-Copilot", layout="centered")
-st.title("DD-Copilot — Due Diligence Técnica")
+st.title("DD-Copilot — Technical Due Diligence")
 st.caption(
-    "Pega una URL, sube un PDF, o pega texto de material público de una "
-    "startup deep-tech. DD-Copilot genera un informe de due diligence "
-    "técnica con citas verificadas contra la fuente original."
+    "Paste a URL, upload a PDF, or paste text from public material of a "
+    "deep-tech startup. DD-Copilot generates a technical due-diligence "
+    "report with citations verified against the original source."
 )
 
-source_type = st.radio("Tipo de fuente", ["URL", "Texto pegado", "PDF"], horizontal=True)
+source_type = st.radio("Source type", ["URL", "Pasted text", "PDF"], horizontal=True)
 
 source_input = None
 if source_type == "URL":
-    source_input = st.text_input("URL de la web o whitepaper")
-elif source_type == "Texto pegado":
-    source_input = st.text_area("Pega aquí el texto", height=200)
+    source_input = st.text_input("Website or whitepaper URL")
+elif source_type == "Pasted text":
+    source_input = st.text_area("Paste the text here", height=200)
 else:
-    uploaded_file = st.file_uploader("Sube un PDF", type=["pdf"])
+    uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
     if uploaded_file is not None:
         temp_path = f"/tmp/{uploaded_file.name}"
         with open(temp_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
         source_input = temp_path
 
-if st.button("Analizar", disabled=not source_input):
-    with st.spinner("Analizando material público..."):
+if st.button("Analyze", disabled=not source_input):
+    with st.spinner("Analyzing public material..."):
         client = build_anthropic_client()
         markdown = analyze(source_input, client)
     st.markdown(markdown)
@@ -1200,15 +1210,15 @@ git commit -m "feat: visor Streamlit de una pagina"
 ### Task 12: Demo con Isomorphic Labs
 
 **Files:**
-- Create: `examples/isomorphic-labs/fuente.txt`
-- Create: `examples/isomorphic-labs/informe.md`
+- Create: `examples/isomorphic-labs/source.txt`
+- Create: `examples/isomorphic-labs/report.md`
 
 **Interfaces:**
 - Consumes: `dd_copilot.cli` end-to-end, con `ANTHROPIC_API_KEY` real.
 
 - [ ] **Step 1: Recopilar el texto público de Isomorphic Labs**
 
-Pegar en `examples/isomorphic-labs/fuente.txt` el contenido público (web "About"/"Science" de isomorphiclabs.com, o un comunicado de prensa) — texto plano, citando la fuente en la primera línea como comentario `<!-- fuente: https://... -->`.
+Pegar en `examples/isomorphic-labs/source.txt` el contenido público (web "About"/"Science" de isomorphiclabs.com, o un comunicado de prensa; si el original está en inglés, pegarlo tal cual — coherente con la decisión de idioma del producto) — texto plano, citando la fuente en la primera línea como comentario `<!-- source: https://... -->`.
 
 - [ ] **Step 2: Configurar la API key real**
 
@@ -1216,12 +1226,12 @@ Run: `cp .env.example .env` y rellenar `ANTHROPIC_API_KEY` con la clave real del
 
 - [ ] **Step 3: Ejecutar el análisis real end-to-end**
 
-Run: `ddcopilot analyze examples/isomorphic-labs/fuente.txt --output examples/isomorphic-labs/informe.md`
-Expected: fichero `informe.md` generado con las 5 secciones fijas, sin errores.
+Run: `ddcopilot analyze examples/isomorphic-labs/source.txt --output examples/isomorphic-labs/report.md`
+Expected: fichero `report.md` generado con las 5 secciones fijas, sin errores.
 
 - [ ] **Step 4: Revisar manualmente el informe generado**
 
-Abrir `examples/isomorphic-labs/informe.md` y comprobar: (a) toda cita aparece literalmente en `fuente.txt`, (b) los campos sin evidencia dicen "no mencionado en la fuente", (c) el nivel de confianza tiene justificación coherente con el contenido real.
+Abrir `examples/isomorphic-labs/report.md` y comprobar: (a) toda cita aparece literalmente en `source.txt`, (b) los campos sin evidencia dicen "Not mentioned in the source", (c) el nivel de confianza tiene justificación coherente con el contenido real.
 
 - [ ] **Step 5: Commit**
 
@@ -1232,16 +1242,17 @@ git commit -m "docs: demo real con Isomorphic Labs"
 
 ---
 
-### Task 13: Documentación final — README y GUIA-DE-USO
+### Task 13: Documentación final — README (inglés) + guías de uso (ES/EN)
 
 **Files:**
-- Create: `README.md`
-- Create: `GUIA-DE-USO.md`
+- Create: `README.md` (inglés)
+- Create: `GUIA-DE-USO.md` (español)
+- Create: `USER-GUIDE.md` (inglés — mismo contenido que `GUIA-DE-USO.md`)
 
 **Interfaces:**
 - Consumes: todo el proyecto ya implementado (documentación, no código).
 
-- [ ] **Step 1: Escribir `README.md`**
+- [ ] **Step 1: Escribir `README.md` (en inglés)**
 
 Contenido mínimo requerido (técnico, explica el "por qué", no solo el "qué"):
 - Qué es DD-Copilot y para qué caso de uso (link al Proyecto 0 del documento de prompts).
@@ -1249,25 +1260,26 @@ Contenido mínimo requerido (técnico, explica el "por qué", no solo el "qué")
 - Por qué LlamaIndex + embeddings locales en vez de una base vectorial externa.
 - Por qué la cascada Haiku/Sonnet (coste vs. calidad) y el prompt caching.
 - Por qué la validación de citas es un requisito no negociable (anti-alucinación).
+- Nota sobre la decisión de idioma: producto en inglés, con enlace a las dos guías de uso.
 - Instrucciones de instalación y ejecución (CLI y Streamlit).
-- Enlace al informe de demo (`examples/isomorphic-labs/informe.md`).
-- Sección "Roadmap (no implementado)": comparación entre startups, scoring ponderado, multi-proveedor de LLM.
+- Enlace al informe de demo (`examples/isomorphic-labs/report.md`).
+- Sección "Roadmap (not implemented)": comparación entre startups, scoring ponderado, multi-proveedor de LLM.
 
-- [ ] **Step 2: Escribir `GUIA-DE-USO.md` (español, sin jerga sin definir)**
+- [ ] **Step 2: Escribir `GUIA-DE-USO.md` (español, sin jerga sin definir) y `USER-GUIDE.md` (inglés, mismo contenido)**
 
-Contenido mínimo requerido:
+Contenido mínimo requerido (idéntico en ambos ficheros, solo cambia el idioma):
 - Qué hace cada fichero del proyecto, en una frase, sin asumir conocimiento previo de RAG/embeddings/LLM (definir cada término la primera vez que aparece).
 - Cómo instalar Python, crear el entorno virtual, instalar dependencias, paso a paso con los comandos exactos.
 - Cómo conseguir y configurar la API key de Anthropic.
 - Cómo ejecutar el demo de Isomorphic Labs y cómo ejecutar un análisis propio (URL, PDF o texto).
-- Cómo leer el informe generado: qué significa cada sección, qué significa "no mencionado en la fuente", qué significa el nivel de confianza.
+- Cómo leer el informe generado (nota: el informe sale en inglés): qué significa cada sección, qué significa "Not mentioned in the source", qué significa el nivel de confianza.
 - Cómo ejecutar la suite de tests para comprobar que todo sigue funcionando (`pytest`).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add README.md GUIA-DE-USO.md
-git commit -m "docs: readme tecnico y guia de uso en espanol"
+git add README.md GUIA-DE-USO.md USER-GUIDE.md
+git commit -m "docs: readme en ingles y guias de uso en espanol e ingles"
 ```
 
 ---
@@ -1295,7 +1307,7 @@ Run: `gh repo view jjpp01x/dd-copilot --web` (o revisar manualmente en el navega
 
 ## Self-Review
 
-**Cobertura del spec:** ingesta ✅ (Task 3), chunking semántico ✅ (Task 4), extracción estructurada con checklist fijo ✅ (Task 7), citas/anti-alucinación ✅ (Task 5, 7), informe con 5 secciones fijas ✅ (Task 8), cascada Haiku/Sonnet + prompt caching + filtrado por embeddings ✅ (Task 6, 7), CLI + Streamlit sin duplicar lógica ✅ (Task 9, 10, 11), tests con Claude mockeado ✅ (todas las tasks con LLM), demo Isomorphic Labs ✅ (Task 12), README + GUIA-DE-USO ✅ (Task 13), publicación en GitHub ✅ (Task 14).
+**Cobertura del spec:** ingesta ✅ (Task 3), chunking semántico ✅ (Task 4), extracción estructurada con checklist fijo ✅ (Task 7), citas/anti-alucinación ✅ (Task 5, 7), informe con 5 secciones fijas ✅ (Task 8), cascada Haiku/Sonnet + prompt caching + filtrado por embeddings ✅ (Task 6, 7), CLI + Streamlit sin duplicar lógica ✅ (Task 9, 10, 11), tests con Claude mockeado ✅ (todas las tasks con LLM), demo Isomorphic Labs ✅ (Task 12), README (inglés) + GUIA-DE-USO/USER-GUIDE (ES/EN) ✅ (Task 13), publicación en GitHub ✅ (Task 14), decisión de idioma del producto en inglés y modelo de embeddings ✅ (actualizado tras revisión de Task 6, ver Global Constraints).
 
 **Placeholders:** ninguno pendiente — todos los pasos incluyen código completo.
 
