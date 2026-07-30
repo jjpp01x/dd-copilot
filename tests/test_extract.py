@@ -12,24 +12,12 @@ SOURCE_TEXT = (
 )
 
 
-def _fake_haiku_response(payload: dict):
-    message = MagicMock()
-    message.content = [MagicMock(text=json.dumps(payload))]
-    return message
-
-
-def _fake_sonnet_response(payload: dict):
-    message = MagicMock()
-    message.content = [MagicMock(text=json.dumps(payload))]
-    return message
-
-
 def test_run_extraction_marks_field_as_not_mentioned_when_citation_is_fabricated(monkeypatch):
     doc = Document(source_name="isomorphic-labs", text=SOURCE_TEXT)
     nodes = chunk_document(doc, chunk_size=60, chunk_overlap=10)
     index = build_index(nodes)
 
-    fake_client = MagicMock()
+    fake_provider = MagicMock()
 
     haiku_payload = {
         "value": "Solves drug discovery.",
@@ -41,18 +29,18 @@ def test_run_extraction_marks_field_as_not_mentioned_when_citation_is_fabricated
         "confidence_justification": "Public material is limited.",
     }
 
-    fake_client.messages.create.side_effect = [
-        _fake_haiku_response(haiku_payload),  # problem
-        _fake_haiku_response({"value": "", "citation": "", "mentioned": False}),  # differentiation
-        _fake_haiku_response({"value": "", "citation": "", "mentioned": False}),  # performance
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 1
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 2
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 3
-        _fake_haiku_response({"mentioned": False, "detail": None, "citation": ""}),  # risk 4
-        _fake_sonnet_response(sonnet_payload),  # final synthesis
+    fake_provider.complete.side_effect = [
+        json.dumps(haiku_payload),  # problem
+        json.dumps({"value": "", "citation": "", "mentioned": False}),  # differentiation
+        json.dumps({"value": "", "citation": "", "mentioned": False}),  # performance
+        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 1
+        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 2
+        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 3
+        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 4
+        json.dumps(sonnet_payload),  # final synthesis
     ]
 
-    result = run_extraction(fake_client, index, SOURCE_TEXT, "isomorphic-labs")
+    result = run_extraction(fake_provider, index, SOURCE_TEXT, "isomorphic-labs")
 
     assert result.extraction.problem.mentioned is False
     assert result.extraction.problem.citations == []

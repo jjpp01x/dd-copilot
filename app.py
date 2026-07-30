@@ -1,6 +1,6 @@
 import streamlit as st
 
-from dd_copilot.cli import build_anthropic_client
+from dd_copilot.cli import build_provider
 from dd_copilot.pipeline import analyze
 
 st.set_page_config(page_title="DD-Copilot", layout="centered")
@@ -26,8 +26,10 @@ else:
             f.write(uploaded_file.getbuffer())
         source_input = temp_path
 
+llm_choice = st.radio("LLM provider", ["Claude", "Ollama (local)"], horizontal=True)
+
 if st.button("Analyze", disabled=not source_input):
     with st.spinner("Analyzing public material..."):
-        client = build_anthropic_client()
-        markdown = analyze(source_input, client)
+        provider = build_provider("claude" if llm_choice == "Claude" else "ollama")
+        markdown = analyze(source_input, provider)
     st.markdown(markdown)

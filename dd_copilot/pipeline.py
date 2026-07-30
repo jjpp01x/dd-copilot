@@ -5,10 +5,10 @@ from dd_copilot.extract import run_extraction
 from dd_copilot.report import render_report
 
 
-def analyze(source: str, client) -> str:
+def analyze(source: str, provider) -> str:
     """Runs ingest -> chunk -> index -> extract -> report and returns the final Markdown."""
     document = ingest(source)
     nodes = chunk_document(document)
     index = build_index(nodes)
-    report_input = run_extraction(client, index, document.text, document.source_name)
+    report_input = run_extraction(provider, index, document.text, document.source_name)
     return render_report(report_input)

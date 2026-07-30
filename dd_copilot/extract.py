@@ -1,10 +1,10 @@
 import json
 
-from tenacity import retry, stop_after_attempt, wait_exponential
 from llama_index.core import VectorStoreIndex
 
 from dd_copilot.citation_check import verify_citation
 from dd_copilot.index import retrieve_relevant_chunks
+from dd_copilot.providers import LLMProvider
 from dd_copilot.models import (
     Citation,
     ChecklistField,
@@ -13,9 +13,6 @@ from dd_copilot.models import (
     ExtractionResult,
     ReportInput,
 )
-
-CLASSIFY_MODEL = "claude-haiku-4-5-20251001"
-SYNTHESIS_MODEL = "claude-sonnet-5"
 
 SYSTEM_PROMPT = (
     "You are a technical due-diligence analyst for deep-tech investment. "
@@ -38,17 +35,6 @@ RISK_QUESTIONS: dict[RiskName, str] = {
 }
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
-def _call_claude(client, model: str, user_prompt: str) -> dict:
-    message = client.messages.create(
-        model=model,
-        max_tokens=512,
-        system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": user_prompt}],
-    )
-    return json.loads(message.content[0].text)
-
-
 def _build_field_from_response(payload: dict, source_text: str) -> ChecklistField:
     citation_text = payload.get("citation", "") or ""
     mentioned = bool(payload.get("mentioned")) and verify_citation(citation_text, source_text)
@@ -61,18 +47,18 @@ def _build_field_from_response(payload: dict, source_text: str) -> ChecklistFiel
     )
 
 
-def extract_field(client, field_name: str, question: str, index: VectorStoreIndex, source_text: str) -> ChecklistField:
+def extract_field(provider: LLMProvider, field_name: str, question: str, index: VectorStoreIndex, source_text: str) -> ChecklistField:
     nodes = retrieve_relevant_chunks(index, question, top_k=5)
     context = "\n\n".join(node.get_content() for node in nodes)
     prompt = (
         f"Question: {question}\n\nSource text (relevant excerpts):\n{context}\n\n"
         'Respond in JSON: {"value": str, "citation": str, "mentioned": bool}'
     )
-    payload = _call_claude(client, CLASSIFY_MODEL, prompt)
+    payload = json.loads(provider.complete(SYSTEM_PROMPT, prompt, tier="classify"))
     return _build_field_from_response(payload, source_text)
 
 
-def extract_risks(client, index: VectorStoreIndex, source_text: str) -> list[RiskChecklistItem]:
+def extract_risks(provider: LLMProvider, index: VectorStoreIndex, source_text: str) -> list[RiskChecklistItem]:
     risks = []
     for risk_name, question in RISK_QUESTIONS.items():
         nodes = retrieve_relevant_chunks(index, question, top_k=3)
@@ -81,7 +67,7 @@ def extract_risks(client, index: VectorStoreIndex, source_text: str) -> list[Ris
             f"Question: {question}\n\nSource text (relevant excerpts):\n{context}\n\n"
             'Respond in JSON: {"mentioned": bool, "detail": str or null, "citation": str}'
         )
-        payload = _call_claude(client, CLASSIFY_MODEL, prompt)
+        payload = json.loads(provider.complete(SYSTEM_PROMPT, prompt, tier="classify"))
         citation_text = payload.get("citation", "") or ""
         mentioned = bool(payload.get("mentioned")) and verify_citation(citation_text, source_text)
         risks.append(
@@ -95,23 +81,23 @@ def extract_risks(client, index: VectorStoreIndex, source_text: str) -> list[Ris
     return risks
 
 
-def synthesize_confidence(client, extraction: ExtractionResult) -> tuple[int, str]:
+def synthesize_confidence(provider: LLMProvider, extraction: ExtractionResult) -> tuple[int, str]:
     summary = extraction.model_dump_json()
     prompt = (
         f"Already-structured extracted data (not raw text):\n{summary}\n\n"
         'Give a confidence level for the analysis (1-5) and its justification. '
         'Respond in JSON: {"confidence_score": int, "confidence_justification": str}'
     )
-    payload = _call_claude(client, SYNTHESIS_MODEL, prompt)
+    payload = json.loads(provider.complete(SYSTEM_PROMPT, prompt, tier="synthesis"))
     return payload["confidence_score"], payload["confidence_justification"]
 
 
-def run_extraction(client, index: VectorStoreIndex, source_text: str, source_name: str) -> ReportInput:
+def run_extraction(provider: LLMProvider, index: VectorStoreIndex, source_text: str, source_name: str) -> ReportInput:
     """Runs the Haiku (per-field) -> Sonnet (final synthesis) cascade."""
-    problem = extract_field(client, "problem", FIELD_QUESTIONS["problem"], index, source_text)
-    differentiation = extract_field(client, "differentiation", FIELD_QUESTIONS["differentiation"], index, source_text)
-    performance = extract_field(client, "performance", FIELD_QUESTIONS["performance"], index, source_text)
-    risks = extract_risks(client, index, source_text)
+    problem = extract_field(provider, "problem", FIELD_QUESTIONS["problem"], index, source_text)
+    differentiation = extract_field(provider, "differentiation", FIELD_QUESTIONS["differentiation"], index, source_text)
+    performance = extract_field(provider, "performance", FIELD_QUESTIONS["performance"], index, source_text)
+    risks = extract_risks(provider, index, source_text)
 
     extraction = ExtractionResult(
         problem=problem,
@@ -120,7 +106,7 @@ def run_extraction(client, index: VectorStoreIndex, source_text: str, source_nam
         risks=risks,
     )
 
-    confidence_score, confidence_justification = synthesize_confidence(client, extraction)
+    confidence_score, confidence_justification = synthesize_confidence(provider, extraction)
 
     return ReportInput(
         source_name=source_name,
