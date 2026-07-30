@@ -1,0 +1,13 @@
+Isomorphic Labs' mission is to solve all disease with the help of AI. The company is using machine learning to transform drug discovery.
+
+AlphaFold broke new ground in predicting the 3D structure of proteins from their amino acid sequence. Isomorphic Labs has built on this foundation, developing an AI-first drug design engine intended to model complex biological phenomena, design molecules, predict drug behavior, and help develop treatments for serious diseases.
+
+Sir Demis Hassabis, Founder and CEO of Isomorphic Labs, has said: "I believe there is no more important application of AI than helping improve human health."
+
+The Isomorphic Labs Drug Design Engine is described as unlocking a new frontier beyond AlphaFold, extending predictive modeling from protein structure toward the broader process of designing viable drug candidates.
+
+Isomorphic Labs has entered into a cross-modality, multi-target research collaboration with Johnson & Johnson. The collaboration combines Isomorphic Labs' AI-driven approach to drug discovery with Johnson & Johnson's expertise in target biology and drug discovery and development. According to the announcement, Isomorphic Labs' drug design engine is capable of generating drug candidates for challenging targets across a range of modalities, including small molecules, antibodies, peptides, and molecular glues. The collaboration will draw on Isomorphic Labs' multi-modality discovery capability, including large molecule biologics design. No specific deal terms, such as upfront or milestone payments, are disclosed in the public announcement.
+
+Isomorphic Labs has also announced external investment rounds to fund its research, including a $600 million external investment round and, subsequently, a Series B investment round.
+
+The company has continued to build out its leadership team, including appointing Max Jaderberg as President and Dr. Ben Wolf as Chief Medical Officer, the latter appointment also marking the establishment of a US presence for the company.
