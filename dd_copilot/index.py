@@ -2,7 +2,7 @@ from llama_index.core import VectorStoreIndex
 from llama_index.core.schema import TextNode
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-EMBED_MODEL_NAME = "intfloat/multilingual-e5-small"
+EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 _embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL_NAME)
 
 
