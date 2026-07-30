@@ -1240,7 +1240,7 @@ git commit -m "feat: visor Streamlit de una pagina"
 
 - [ ] **Step 1: Recopilar el texto público de Isomorphic Labs**
 
-Pegar en `examples/isomorphic-labs/source.txt` el contenido público (web "About"/"Science" de isomorphiclabs.com, o un comunicado de prensa; si el original está en inglés, pegarlo tal cual — coherente con la decisión de idioma del producto) — texto plano, citando la fuente en la primera línea como comentario `<!-- source: https://... -->`.
+Pegar en `examples/isomorphic-labs/source.txt` el contenido público (web "About"/"Science" de isomorphiclabs.com, o un comunicado de prensa; si el original está en inglés, pegarlo tal cual — coherente con la decisión de idioma del producto) — texto plano, **sin URLs embebidas**. Las URLs de referencia van en un fichero aparte, `examples/isomorphic-labs/SOURCES.md` (hallazgo real de la Task 12: un comentario `<!-- source: https://... -->` dentro del propio texto hace que modelos más pequeños, como `llama3.1` local, confundan la URL con una "cita" válida, ya que aparece literalmente en la fuente).
 
 - [ ] **Step 2: Elegir proveedor de ejecución**
 
