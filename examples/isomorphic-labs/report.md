@@ -2,20 +2,20 @@
 
 ## 1. Executive Summary
 
-drug discovery
+Not enough public information for an executive summary.
 
 ## 2. What the Startup Says
 
-- **Problem it solves:** drug discovery (citation: "The Isomorphic Labs Drug Design Engine is described as unlocking a new frontier beyond AlphaFold, extending predictive modeling from protein structure toward the broader process of designing viable drug candidates.")
+- **Problem it solves:** Not mentioned in the source.
 - **Technical differentiation:** Not mentioned in the source.
-- **Performance/scalability claims:** Not mentioned in the source.
+- **Performance/scalability claims:** The Isomorphic Labs Drug Design Engine is capable of generating drug candidates for challenging targets across a range of modalities, including small molecules, antibodies, peptides, and molecular glues. (citation: "Isomorphic Labs has entered into a cross-modality, multi-target research collaboration with Johnson & Johnson.")
 
 ## 3. What It Doesn't Say
 
-- **trl_maturity** (Technology readiness level (TRL)): not mentioned — pending question for the founder.
-- **hardware_dependency** (Hardware/vendor dependency): not mentioned — pending question for the founder.
-- **reproducibility** (Reproducibility of results): not mentioned — pending question for the founder.
-- **regulatory_risk** (Regulatory risk): not mentioned — pending question for the founder.
+- **Technology readiness level (TRL):** not mentioned — pending question for the founder.
+- **Hardware/vendor dependency:** not mentioned — pending question for the founder.
+- **Reproducibility of results:** not mentioned — pending question for the founder.
+- **Regulatory risk:** not mentioned — pending question for the founder.
 
 ## 4. Questions for the Next Founder Call
 
@@ -26,4 +26,4 @@ drug discovery
 
 ## 5. Confidence Level
 
-**3/5** — The Isomorphic Labs Drug Design Engine is mentioned as a specific tool for drug discovery, but there are no other explicit statements about its capabilities or limitations. This suggests that the analysis has some confidence in the tool's relevance to drug discovery, but lacks concrete information to support more detailed assessments.
+**4/5** — The performance value is explicit and mentions a specific capability of the Isomorphic Labs Drug Design Engine. The citations section contains at least one cited source. This suggests that the analysis has a reasonable basis, but a lack of information on the problem statement, differentiation, and risks may indicate some uncertainty or incompleteness.

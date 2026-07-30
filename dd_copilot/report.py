@@ -24,8 +24,8 @@ def _render_field(label: str, field: ChecklistField) -> str:
 def _render_risk(risk: RiskChecklistItem) -> str:
     label = RISK_LABELS[risk.risk_name]
     if not risk.mentioned:
-        return f"- **{risk.risk_name}** ({label}): not mentioned — pending question for the founder."
-    return f"- **{risk.risk_name}** ({label}): {risk.detail}"
+        return f"- **{label}:** not mentioned — pending question for the founder."
+    return f"- **{label}:** {risk.detail}"
 
 
 def render_report(report_input: ReportInput) -> str:

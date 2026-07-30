@@ -1,11 +1,10 @@
 [project]
 name = "dd-copilot"
 version = "0.1.0"
-description = "Copiloto de due diligence técnica para startups deep-tech"
+description = "Technical due-diligence copilot for deep-tech startups"
 requires-python = ">=3.12"
 dependencies = [
     "llama-index-core>=0.11.0",
-    "llama-index-llms-anthropic>=0.3.0",
     "llama-index-embeddings-huggingface>=0.3.0",
     "sentence-transformers>=3.0.0",
     "anthropic>=0.34.0",

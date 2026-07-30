@@ -17,7 +17,7 @@ def test_render_report_includes_all_five_fixed_sections():
     assert "## 4. Questions for the Next Founder Call" in markdown
     assert "## 5. Confidence Level" in markdown
     assert "accelerates drug discovery" in markdown
-    assert "trl_maturity" in markdown
+    assert "Technology readiness level (TRL)" in markdown
 
 
 def test_render_report_treats_mentioned_risk_as_covered_and_omits_it_from_gaps():

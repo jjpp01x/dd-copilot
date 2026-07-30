@@ -1,16 +1,15 @@
-import textwrap
 from dd_copilot.ingest import ingest, ingest_text, Document
 
 def test_ingest_text_returns_document_with_default_source_name():
-    doc = ingest_text("Este es el texto pegado por el usuario.")
+    doc = ingest_text("This is the text pasted by the user.")
     assert isinstance(doc, Document)
-    assert doc.source_name == "texto pegado"
-    assert "texto pegado por el usuario" in doc.text
+    assert doc.source_name == "pasted text"
+    assert "text pasted by the user" in doc.text
 
 def test_ingest_dispatches_plain_text_when_not_url_or_file(tmp_path):
-    doc = ingest("Isomorphic Labs combina IA y biología para acelerar el descubrimiento de fármacos.")
+    doc = ingest("Isomorphic Labs combines AI and biology to accelerate drug discovery.")
     assert "Isomorphic Labs" in doc.text
-    assert doc.source_name == "texto pegado"
+    assert doc.source_name == "pasted text"
 
 def test_ingest_dispatches_to_pdf_when_path_exists_and_ends_in_pdf(tmp_path, monkeypatch):
     fake_pdf = tmp_path / "whitepaper.pdf"

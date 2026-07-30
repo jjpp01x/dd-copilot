@@ -24,11 +24,17 @@ class ClaudeProvider:
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
     def complete(self, system_prompt: str, user_prompt: str, tier: Tier) -> str:
         model = self.CLASSIFY_MODEL if tier == "classify" else self.SYNTHESIS_MODEL
+        kwargs = {}
+        if tier == "synthesis":
+            # claude-sonnet-5 runs adaptive thinking by default; a short JSON-only
+            # reply doesn't need it, and max_tokens caps thinking + text together.
+            kwargs["thinking"] = {"type": "disabled"}
         message = self.client.messages.create(
             model=model,
-            max_tokens=512,
+            max_tokens=1024,
             system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_prompt}],
+            **kwargs,
         )
         return message.content[0].text
 

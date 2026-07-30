@@ -11,7 +11,7 @@ class Document:
     text: str
 
 
-def ingest_text(text: str, source_name: str = "texto pegado") -> Document:
+def ingest_text(text: str, source_name: str = "pasted text") -> Document:
     return Document(source_name=source_name, text=text)
 
 
