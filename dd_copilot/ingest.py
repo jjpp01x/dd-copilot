@@ -29,7 +29,7 @@ def ingest_url(url: str) -> Document:
 
 
 def ingest(source: str) -> Document:
-    """Detecta si `source` es una URL, una ruta a PDF, o texto en bruto, y despacha."""
+    """Detects whether `source` is a URL, a PDF path, or raw text, and dispatches accordingly."""
     if source.startswith("http://") or source.startswith("https://"):
         return ingest_url(source)
     if source.lower().endswith(".pdf") and os.path.exists(source):

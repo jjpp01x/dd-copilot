@@ -5,7 +5,7 @@ from dd_copilot.ingest import Document
 
 
 def chunk_document(document: Document, chunk_size: int = 512, chunk_overlap: int = 50) -> list[TextNode]:
-    """Trocea el documento en chunks semánticos (por oraciones, con solape)."""
+    """Splits the document into semantic chunks (by sentence, with overlap)."""
     llama_doc = LlamaDocument(text=document.text, metadata={"source_name": document.source_name})
     splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     return splitter.get_nodes_from_documents([llama_doc])

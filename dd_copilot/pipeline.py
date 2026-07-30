@@ -6,7 +6,7 @@ from dd_copilot.report import render_report
 
 
 def analyze(source: str, client) -> str:
-    """Ejecuta ingest -> chunk -> index -> extract -> report y devuelve el Markdown final."""
+    """Runs ingest -> chunk -> index -> extract -> report and returns the final Markdown."""
     document = ingest(source)
     nodes = chunk_document(document)
     index = build_index(nodes)

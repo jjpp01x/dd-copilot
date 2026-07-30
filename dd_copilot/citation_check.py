@@ -2,10 +2,10 @@ from rapidfuzz import fuzz
 
 
 def verify_citation(citation_text: str, source_text: str, threshold: int = 90) -> bool:
-    """Comprueba que `citation_text` aparece literalmente (o casi) en `source_text`.
+    """Checks that `citation_text` appears literally (or nearly so) in `source_text`.
 
-    Usa partial_ratio para tolerar pequeñas variaciones (mayúsculas, tildes,
-    espacios) sin permitir que se cuele contenido inventado.
+    Uses partial_ratio to tolerate small variations (case, accents,
+    whitespace) without letting fabricated content slip through.
     """
     citation_text = citation_text.strip()
     if not citation_text:
