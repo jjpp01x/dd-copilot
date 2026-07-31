@@ -1,4 +1,4 @@
-from dd_copilot.models import ReportInput, ChecklistField, RiskChecklistItem
+from dd_copilot.models import ReportInput, ChecklistField, Claim, RiskChecklistItem
 
 FIELD_LABELS = {
     "problem": "Problem it solves",
@@ -11,6 +11,14 @@ RISK_LABELS = {
     "hardware_dependency": "Hardware/vendor dependency",
     "reproducibility": "Reproducibility of results",
     "regulatory_risk": "Regulatory risk",
+    "scaling_bottleneck": "Bottleneck to industrial scaling",
+    "talent_dependency": "Dependency on critical talent",
+}
+
+VERDICT_LABELS = {
+    "verifiable": "Verifiable",
+    "plausible": "Plausible",
+    "unsupported": "Unsupported",
 }
 
 
@@ -28,6 +36,39 @@ def _render_risk(risk: RiskChecklistItem) -> str:
     return f"- **{label}:** {risk.detail}"
 
 
+def _escape_cell(text: str) -> str:
+    """Markdown tables break on unescaped pipes, and quoted source text has them."""
+    return text.replace("|", "\\|").replace("\n", " ").strip()
+
+
+def _render_claims_table(claims: list[Claim]) -> str:
+    if not claims:
+        return "- The source makes no quantitative claims that could be assessed."
+    header = (
+        "| Claim | Figure | Verdict | Why |\n"
+        "| --- | --- | --- | --- |"
+    )
+    rows = [
+        "| {} | {} | {} | {} |".format(
+            _escape_cell(c.text),
+            _escape_cell(c.figure or "—"),
+            VERDICT_LABELS[c.verdict],
+            _escape_cell(c.justification),
+        )
+        for c in claims
+    ]
+    return "\n".join([header, *rows])
+
+
+def _claim_questions(claims: list[Claim]) -> list[str]:
+    """The claims worth asking about are the ones the source does not back up."""
+    return [
+        f'- On "{_escape_cell(c.text)}": under what conditions was this measured, and by whom?'
+        for c in claims
+        if c.verdict != "verifiable"
+    ]
+
+
 def render_report(report_input: ReportInput) -> str:
     extraction = report_input.extraction
 
@@ -41,7 +82,7 @@ def render_report(report_input: ReportInput) -> str:
     if not doesnt_say_lines:
         doesnt_say_lines = ["- All checklist risks are covered by the source."]
 
-    question_lines = [
+    question_lines = _claim_questions(extraction.claims) + [
         f"- On {RISK_LABELS[r.risk_name].lower()}: not documented, can the team clarify?"
         for r in extraction.risks
         if not r.mentioned
@@ -55,8 +96,9 @@ def render_report(report_input: ReportInput) -> str:
             "## 1. Executive Summary\n\n" + (extraction.problem.value or "Not enough public information for an executive summary."),
             "## 2. What the Startup Says\n\n" + "\n".join(says_lines),
             "## 3. What It Doesn't Say\n\n" + "\n".join(doesnt_say_lines),
-            "## 4. Questions for the Next Founder Call\n\n" + "\n".join(question_lines),
-            "## 5. Confidence Level\n\n"
+            "## 4. Claims Assessed\n\n" + _render_claims_table(extraction.claims),
+            "## 5. Questions for the Next Founder Call\n\n" + "\n".join(question_lines),
+            "## 6. Confidence Level\n\n"
             f"**{report_input.confidence_score}/5** — {report_input.confidence_justification}",
         ]
     )

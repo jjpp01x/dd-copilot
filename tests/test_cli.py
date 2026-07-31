@@ -17,10 +17,8 @@ PAYLOADS = [
     {"value": "Solves X.", "citation": "Solves X.", "mentioned": True},
     {"value": "", "citation": "", "mentioned": False},
     {"value": "", "citation": "", "mentioned": False},
-    {"mentioned": False, "detail": None, "citation": ""},
-    {"mentioned": False, "detail": None, "citation": ""},
-    {"mentioned": False, "detail": None, "citation": ""},
-    {"mentioned": False, "detail": None, "citation": ""},
+    *[{"mentioned": False, "detail": None, "citation": ""}] * 6,  # six checklist risks
+    {"claims": []},
     {"confidence_score": 2, "confidence_justification": "Little material."},
 ]
 
