@@ -112,3 +112,35 @@ def test_budget_cap_aborts_the_run_with_a_distinct_exit_code(tmp_path):
 
     assert result.exit_code == 3
     assert not output_path.exists()
+
+
+def test_docx_flag_writes_a_word_document(tmp_path):
+    import pytest
+
+    pytest.importorskip("docx")
+    output_path = tmp_path / "report.md"
+    docx_path = tmp_path / "report.docx"
+    fake_provider = _fake_provider(PAYLOADS)
+
+    with patch("dd_copilot.cli.build_provider", return_value=fake_provider):
+        result = runner.invoke(
+            app,
+            ["analyze", "Test text about a startup that solves X.",
+             "--output", str(output_path), "--docx", str(docx_path)],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert docx_path.exists()
+
+
+def test_without_the_docx_flag_no_word_document_is_written(tmp_path):
+    output_path = tmp_path / "report.md"
+    fake_provider = _fake_provider(PAYLOADS)
+
+    with patch("dd_copilot.cli.build_provider", return_value=fake_provider):
+        result = runner.invoke(
+            app, ["analyze", "Test text.", "--output", str(output_path)]
+        )
+
+    assert result.exit_code == 0
+    assert not list(tmp_path.glob("*.docx"))

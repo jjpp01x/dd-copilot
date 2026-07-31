@@ -9,13 +9,11 @@ the number, not that the number is false — a distinction that matters when the
 report ends up in front of an investment committee.
 """
 
-import json
-import re
-
 from llama_index.core import VectorStoreIndex
 
 from dd_copilot.citation_check import verify_citation
 from dd_copilot.index import retrieve_relevant_chunks
+from dd_copilot.jsonio import parse_json_response
 from dd_copilot.models import Citation, Claim, ClaimVerdict
 from dd_copilot.providers import LLMProvider
 
@@ -42,16 +40,6 @@ CLAIMS_RESPONSE_SCHEMA = (
     '"verdict": "verifiable" | "plausible" | "unsupported", '
     '"method": str or null, "justification": str, "citation": str}]}'
 )
-
-
-def _parse_json_response(text: str) -> dict:
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if not match:
-            raise
-        return json.loads(match.group(0))
 
 
 def classify_claim(payload: dict, source_text: str) -> Claim | None:
@@ -111,7 +99,7 @@ def extract_claims(provider: LLMProvider, index: VectorStoreIndex, source_text: 
         f"Question: {CLAIMS_QUESTION}\n\nSource text (relevant excerpts):\n{context}\n\n"
         f"Respond in JSON: {CLAIMS_RESPONSE_SCHEMA}"
     )
-    payload = _parse_json_response(
+    payload = parse_json_response(
         provider.complete(CLAIMS_SYSTEM_PROMPT, prompt, tier="classify")
     )
 

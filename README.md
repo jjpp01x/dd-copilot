@@ -231,6 +231,22 @@ and retried it, spending *more* money at precisely the moment the budget ran out
 Exit codes: `2` = confidential mode refused a remote provider, `3` = budget cap
 reached.
 
+## Word export
+
+Markdown is the working format; `.docx` is what a client receives.
+
+```bash
+pip install -e ".[docx]"
+ddcopilot analyze <source> --docx report.docx
+```
+
+The conversion understands only what `report.py` emits — headings, bullets, one
+pipe table, paragraphs — rather than pulling in a general Markdown engine for a
+document whose shape we control. The claims table becomes a real Word table:
+rendered as pipe-separated text it reads as noise, and it is the section worth
+reading. `python-docx` is an optional extra, so the core pipeline installs
+without it; `--docx` without it exits 4 with the install command.
+
 ## Known limitations
 
 Stated plainly, because a diligence tool whose limits are undeclared is worse
@@ -258,5 +274,4 @@ than no tool at all.
 
 - Automatic comparison across 2-3 startups in the same vertical.
 - A weighted quantitative scoring model across startups.
-- `.docx` export, which is the format a client actually receives a report in.
 - Additional LLM providers beyond Claude and Ollama (e.g. OpenAI).

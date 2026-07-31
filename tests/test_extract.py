@@ -4,7 +4,8 @@ from unittest.mock import MagicMock
 from dd_copilot.ingest import Document
 from dd_copilot.chunking import chunk_document
 from dd_copilot.index import build_index
-from dd_copilot.extract import run_extraction, _parse_json_response
+from dd_copilot.extract import run_extraction
+from dd_copilot.jsonio import parse_json_response
 
 SOURCE_TEXT = (
     "Isomorphic Labs combines artificial intelligence and biology to accelerate "
@@ -47,9 +48,9 @@ def test_run_extraction_marks_field_as_not_mentioned_when_citation_is_fabricated
 
 def test_parse_json_response_strips_markdown_fences():
     fenced = '```json\n{"mentioned": true, "value": "x"}\n```'
-    assert _parse_json_response(fenced) == {"mentioned": True, "value": "x"}
+    assert parse_json_response(fenced) == {"mentioned": True, "value": "x"}
 
 
 def test_parse_json_response_extracts_json_from_surrounding_text():
     noisy = 'Sure, here is the answer:\n{"mentioned": false}\nHope that helps!'
-    assert _parse_json_response(noisy) == {"mentioned": False}
+    assert parse_json_response(noisy) == {"mentioned": False}

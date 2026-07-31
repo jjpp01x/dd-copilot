@@ -1,11 +1,9 @@
-import json
-import re
-
 from llama_index.core import VectorStoreIndex
 
 from dd_copilot.citation_check import verify_citation
 from dd_copilot.claims import extract_claims
 from dd_copilot.index import retrieve_relevant_chunks
+from dd_copilot.jsonio import parse_json_response
 from dd_copilot.providers import LLMProvider
 from dd_copilot.models import (
     Citation,
@@ -39,18 +37,6 @@ RISK_QUESTIONS: dict[RiskName, str] = {
 }
 
 
-def _parse_json_response(text: str) -> dict:
-    """Parses a model response as JSON, tolerating markdown code fences and
-    stray text around the JSON object (small local models often add either)."""
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if not match:
-            raise
-        return json.loads(match.group(0))
-
-
 def _build_field_from_response(payload: dict, source_text: str) -> ChecklistField:
     citation_text = payload.get("citation", "") or ""
     mentioned = bool(payload.get("mentioned")) and verify_citation(citation_text, source_text)
@@ -70,7 +56,7 @@ def extract_field(provider: LLMProvider, field_name: str, question: str, index: 
         f"Question: {question}\n\nSource text (relevant excerpts):\n{context}\n\n"
         'Respond in JSON: {"value": str, "citation": str, "mentioned": bool}'
     )
-    payload = _parse_json_response(provider.complete(SYSTEM_PROMPT, prompt, tier="classify"))
+    payload = parse_json_response(provider.complete(SYSTEM_PROMPT, prompt, tier="classify"))
     return _build_field_from_response(payload, source_text)
 
 
@@ -83,7 +69,7 @@ def extract_risks(provider: LLMProvider, index: VectorStoreIndex, source_text: s
             f"Question: {question}\n\nSource text (relevant excerpts):\n{context}\n\n"
             'Respond in JSON: {"mentioned": bool, "detail": str or null, "citation": str}'
         )
-        payload = _parse_json_response(provider.complete(SYSTEM_PROMPT, prompt, tier="classify"))
+        payload = parse_json_response(provider.complete(SYSTEM_PROMPT, prompt, tier="classify"))
         citation_text = payload.get("citation", "") or ""
         mentioned = bool(payload.get("mentioned")) and verify_citation(citation_text, source_text)
         risks.append(
@@ -104,7 +90,7 @@ def synthesize_confidence(provider: LLMProvider, extraction: ExtractionResult) -
         'Give a confidence level for the analysis (1-5) and its justification. '
         'Respond in JSON: {"confidence_score": int, "confidence_justification": str}'
     )
-    payload = _parse_json_response(provider.complete(SYSTEM_PROMPT, prompt, tier="synthesis"))
+    payload = parse_json_response(provider.complete(SYSTEM_PROMPT, prompt, tier="synthesis"))
     score = payload.get("confidence_score", 1)
     score = max(1, min(5, int(score)))
     justification = payload.get("confidence_justification", "No justification provided.")

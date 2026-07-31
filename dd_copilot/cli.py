@@ -40,6 +40,11 @@ def analyze_command(
         "confidential: client material, local models only.",
     ),
     audit_log: str = typer.Option("audit.jsonl", "--audit-log", help="Path to the JSONL audit trail."),
+    docx: str = typer.Option(
+        None,
+        "--docx",
+        help="Also write the report as a Word document — the format a client receives.",
+    ),
     max_cost_usd: float = typer.Option(
         None,
         "--max-cost-usd",
@@ -74,6 +79,16 @@ def analyze_command(
         report_markdown=markdown,
     )
     console.print(f"[bold green]Report generated:[/bold green] {output}")
+    if docx:
+        try:
+            from dd_copilot.docx_export import write_docx
+        except ImportError:
+            console.print(
+                "[bold red]--docx needs python-docx:[/bold red] pip install -e \".[docx]\""
+            )
+            raise typer.Exit(code=4)
+        write_docx(markdown, docx)
+        console.print(f"[bold green]Word document:[/bold green] {docx}")
     if tracker.calls:
         console.print(
             f"Cost: [bold]${tracker.total_usd:.4f}[/bold] over {tracker.calls} model calls "
