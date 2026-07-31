@@ -4,6 +4,7 @@ import re
 from llama_index.core import VectorStoreIndex
 
 from dd_copilot.citation_check import verify_citation
+from dd_copilot.claims import extract_claims
 from dd_copilot.index import retrieve_relevant_chunks
 from dd_copilot.providers import LLMProvider
 from dd_copilot.models import (
@@ -33,6 +34,8 @@ RISK_QUESTIONS: dict[RiskName, str] = {
     "hardware_dependency": "Is dependency on specific hardware or vendors mentioned?",
     "reproducibility": "Is it mentioned whether results are reproducible or have been externally validated?",
     "regulatory_risk": "Is any applicable regulatory risk for this technology mentioned?",
+    "scaling_bottleneck": "Is any bottleneck to industrial scaling mentioned (manufacturing, data, energy, supply chain, launch capacity)?",
+    "talent_dependency": "Is dependency on specific critical people or scarce specialist talent mentioned?",
 }
 
 
@@ -114,12 +117,14 @@ def run_extraction(provider: LLMProvider, index: VectorStoreIndex, source_text: 
     differentiation = extract_field(provider, "differentiation", FIELD_QUESTIONS["differentiation"], index, source_text)
     performance = extract_field(provider, "performance", FIELD_QUESTIONS["performance"], index, source_text)
     risks = extract_risks(provider, index, source_text)
+    claims = extract_claims(provider, index, source_text)
 
     extraction = ExtractionResult(
         problem=problem,
         differentiation=differentiation,
         performance=performance,
         risks=risks,
+        claims=claims,
     )
 
     confidence_score, confidence_justification = synthesize_confidence(provider, extraction)

@@ -15,10 +15,8 @@ def test_analyze_returns_markdown_with_fixed_sections():
         json.dumps({"value": "Accelerates drug discovery.", "citation": "accelerate drug discovery", "mentioned": True}),
         json.dumps({"value": "", "citation": "", "mentioned": False}),
         json.dumps({"value": "", "citation": "", "mentioned": False}),
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),
+        *[json.dumps({"mentioned": False, "detail": None, "citation": ""})] * 6,  # six checklist risks
+        json.dumps({"claims": []}),
         json.dumps({"confidence_score": 3, "confidence_justification": "Public material is limited."}),
     ]
 
@@ -26,3 +24,4 @@ def test_analyze_returns_markdown_with_fixed_sections():
 
     assert "# Technical Due Diligence Report" in markdown
     assert "accelerate drug discovery" in markdown
+    assert "## 4. Claims Assessed" in markdown

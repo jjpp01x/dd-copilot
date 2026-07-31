@@ -5,3 +5,6 @@ __pycache__/
 .env
 *.egg-info/
 .pytest_cache/
+
+# Audit trail is per-machine and may name what a client asked about
+audit.jsonl

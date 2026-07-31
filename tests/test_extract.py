@@ -33,10 +33,8 @@ def test_run_extraction_marks_field_as_not_mentioned_when_citation_is_fabricated
         json.dumps(haiku_payload),  # problem
         json.dumps({"value": "", "citation": "", "mentioned": False}),  # differentiation
         json.dumps({"value": "", "citation": "", "mentioned": False}),  # performance
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 1
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 2
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 3
-        json.dumps({"mentioned": False, "detail": None, "citation": ""}),  # risk 4
+        *[json.dumps({"mentioned": False, "detail": None, "citation": ""})] * 6,  # six checklist risks
+        json.dumps({"claims": []}),  # claim extraction
         json.dumps(sonnet_payload),  # final synthesis
     ]
 
