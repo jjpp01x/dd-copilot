@@ -45,3 +45,53 @@ def test_ollama_provider_posts_to_local_endpoint_and_returns_response_text():
         call_args = mock_post.call_args
         assert "localhost:11434" in call_args.args[0]
         assert call_args.kwargs["json"]["model"] == "llama3.1"
+
+
+def test_claude_provider_records_real_usage_against_the_tracker():
+    from unittest.mock import MagicMock
+
+    from dd_copilot.costs import CostTracker
+    from dd_copilot.providers import ClaudeProvider
+
+    client = MagicMock()
+    client.messages.create.return_value = MagicMock(
+        content=[MagicMock(text="ok")],
+        usage=MagicMock(input_tokens=1_000_000, output_tokens=0),
+    )
+    tracker = CostTracker()
+
+    ClaudeProvider(client, tracker=tracker).complete("sys", "user", tier="classify")
+
+    # Haiku 4.5 at $1.00 per 1M input tokens.
+    assert tracker.total_usd == 1.00
+    assert tracker.calls == 1
+
+
+def test_claude_provider_stops_the_run_when_the_cap_is_crossed():
+    from unittest.mock import MagicMock
+
+    import pytest
+
+    from dd_copilot.costs import BudgetExceeded, CostTracker
+    from dd_copilot.providers import ClaudeProvider
+
+    client = MagicMock()
+    client.messages.create.return_value = MagicMock(
+        content=[MagicMock(text="ok")],
+        usage=MagicMock(input_tokens=1_000_000, output_tokens=0),
+    )
+    provider = ClaudeProvider(client, tracker=CostTracker(max_usd=0.50))
+
+    with pytest.raises(BudgetExceeded):
+        provider.complete("sys", "user", tier="classify")
+
+
+def test_provider_without_a_tracker_still_works():
+    from unittest.mock import MagicMock
+
+    from dd_copilot.providers import ClaudeProvider
+
+    client = MagicMock()
+    client.messages.create.return_value = MagicMock(content=[MagicMock(text="ok")])
+
+    assert ClaudeProvider(client).complete("sys", "user", tier="classify") == "ok"

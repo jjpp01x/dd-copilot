@@ -199,6 +199,38 @@ text caused a smaller local model to mistake a URL for a valid citation
 in a separate `SOURCES.md` file per example, never inside the text that
 gets analyzed.
 
+## Cost, measured rather than estimated
+
+An analyst who doesn't know what their tooling costs can't defend using it. Every
+Claude call records its real token usage from the API response, and the run
+reports the total:
+
+```bash
+ddcopilot analyze <source> --max-cost-usd 0.50
+```
+
+Rates live in `costs.py` in US dollars per million tokens, taken from Anthropic's
+published pricing: Haiku 4.5 at $1.00 / $5.00 and Sonnet 5 at $3.00 / $15.00.
+Sonnet 5 also had an introductory rate of $2.00 / $10.00 through 2026-08-31 — the
+standard rate is used deliberately, so the cap errs toward stopping early.
+
+Two decisions worth stating:
+
+- **An unpriced model raises rather than costing zero.** A silent zero would let
+  an unrecognised model spend without ever tripping the cap, which is the exact
+  failure the cap exists to prevent.
+- **The cap is checked *after* each call, because a call's cost isn't knowable
+  until it returns.** A run can overshoot by at most one call; what the cap
+  prevents is the next one. Said plainly here rather than implied — a budget that
+  silently overshoots is worse than no budget.
+
+Writing this surfaced a real bug: the retry decorator wrapped `BudgetExceeded`
+and retried it, spending *more* money at precisely the moment the budget ran out.
+`BudgetExceeded` is now exempt from retries.
+
+Exit codes: `2` = confidential mode refused a remote provider, `3` = budget cap
+reached.
+
 ## Known limitations
 
 Stated plainly, because a diligence tool whose limits are undeclared is worse
@@ -226,6 +258,5 @@ than no tool at all.
 
 - Automatic comparison across 2-3 startups in the same vertical.
 - A weighted quantitative scoring model across startups.
-- A hard `MAX_COST_USD` cap that aborts a run before it overruns a budget.
 - `.docx` export, which is the format a client actually receives a report in.
 - Additional LLM providers beyond Claude and Ollama (e.g. OpenAI).

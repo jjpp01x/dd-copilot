@@ -5,6 +5,7 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 from rich.console import Console
 
+from dd_copilot.costs import BudgetExceeded, CostTracker
 from dd_copilot.confidentiality import (
     ConfidentialModeViolation,
     Mode,
@@ -18,12 +19,13 @@ app = typer.Typer()
 console = Console()
 
 
-def build_provider(name: str) -> LLMProvider:
+def build_provider(name: str, tracker: CostTracker | None = None) -> LLMProvider:
     if name == "ollama":
+        # Local inference has no API charge, so there is nothing to track.
         return OllamaProvider()
     load_dotenv()
     api_key = os.environ["ANTHROPIC_API_KEY"]
-    return ClaudeProvider(Anthropic(api_key=api_key))
+    return ClaudeProvider(Anthropic(api_key=api_key), tracker=tracker)
 
 
 @app.command()
@@ -38,6 +40,11 @@ def analyze_command(
         "confidential: client material, local models only.",
     ),
     audit_log: str = typer.Option("audit.jsonl", "--audit-log", help="Path to the JSONL audit trail."),
+    max_cost_usd: float = typer.Option(
+        None,
+        "--max-cost-usd",
+        help="Abort the run once spend crosses this ceiling. Omit for no cap.",
+    ),
 ) -> None:
     """Analyzes `source` and generates a technical due-diligence report in Markdown."""
     try:
@@ -49,9 +56,14 @@ def analyze_command(
     if mode is Mode.CONFIDENTIAL:
         console.print("[bold yellow]CONFIDENTIAL MODE[/bold yellow] — analysis stays on this machine.")
 
-    llm_provider = build_provider(provider)
+    tracker = CostTracker(max_usd=max_cost_usd)
+    llm_provider = build_provider(provider, tracker=tracker)
     console.print(f"[bold]Analyzing:[/bold] {source[:80]}...")
-    markdown = analyze(source, llm_provider)
+    try:
+        markdown = analyze(source, llm_provider)
+    except BudgetExceeded as exc:
+        console.print(f"[bold red]Stopped:[/bold red] {exc}")
+        raise typer.Exit(code=3)
     with open(output, "w", encoding="utf-8") as f:
         f.write(markdown)
     write_audit_record(
@@ -62,6 +74,11 @@ def analyze_command(
         report_markdown=markdown,
     )
     console.print(f"[bold green]Report generated:[/bold green] {output}")
+    if tracker.calls:
+        console.print(
+            f"Cost: [bold]${tracker.total_usd:.4f}[/bold] over {tracker.calls} model calls "
+            f"(measured, not estimated)."
+        )
 
 
 # Typer collapses a Typer() app with a single @app.command() into a bare
