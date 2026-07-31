@@ -44,18 +44,37 @@ CLAIMS_QUESTION = (
 CLAIMS_SYSTEM_PROMPT = (
     "You are a technical due-diligence analyst for deep-tech investment. "
     "You extract quantitative claims and judge how well the source itself backs "
-    "each one up. Use verdict 'verifiable' only when the source states the "
-    "measurement method or conditions, 'plausible' when a figure is given "
-    "without a method, and 'unsupported' when the claim contradicts the "
-    "established state of the art or rests on nothing at all. "
-    "Quote citations verbatim from the source. "
+    "each one up.\n\n"
+    "VERDICTS:\n"
+    "- 'verifiable': the source states the measurement method or conditions "
+    "alongside the figure (a benchmark, a study, a baseline, a shot count, a "
+    "fleet size, a named platform).\n"
+    "- 'plausible': a figure is given with no method or conditions attached.\n"
+    "- 'unsupported': the claim contradicts the established state of the art, "
+    "or rests on nothing at all.\n\n"
+    "CITATION — the most important field. It must be a span of text COPIED "
+    "CHARACTER FOR CHARACTER from the source excerpts you were given. Do not "
+    "paraphrase it, do not summarise it, do not write an empty string. Every "
+    "claim whose citation cannot be found verbatim in the source is discarded "
+    "and never reaches the report, so a missing citation loses the claim.\n\n"
     "Always respond in valid JSON, with no additional text."
 )
 
+#: A worked example beats a schema for a small model: it shows the citation is
+#: a verbatim span rather than a description of one, which is the field that
+#: was most often left blank.
 CLAIMS_RESPONSE_SCHEMA = (
     '{"claims": [{"text": str, "figure": str or null, '
     '"verdict": "verifiable" | "plausible" | "unsupported", '
-    '"method": str or null, "justification": str, "citation": str}]}'
+    '"method": str or null, "justification": str, "citation": str}]}\n\n'
+    "Worked example. If the source contained the sentence "
+    '"Measured over 10,000 episodes on the PushT benchmark, latency fell to 8 ms.", '
+    "you would return:\n"
+    '{"claims": [{"text": "Latency fell to 8 ms.", "figure": "8 ms", '
+    '"verdict": "verifiable", "method": "10,000 episodes on the PushT benchmark", '
+    '"justification": "The source states the benchmark and the episode count.", '
+    '"citation": "Measured over 10,000 episodes on the PushT benchmark, latency fell to 8 ms."}]}\n\n'
+    "Note the citation is the sentence itself, copied exactly — not a description of it."
 )
 
 

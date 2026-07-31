@@ -82,8 +82,18 @@ SHA-256 of the report. A report handed over months ago can then be matched to
 the run that produced it. In confidential mode the source name is redacted,
 because *what* a client is looking at is itself sensitive.
 
-See a real, unedited example: [`examples/isomorphic-labs/report.md`](examples/isomorphic-labs/report.md)
-(generated from [`examples/isomorphic-labs/source.txt`](examples/isomorphic-labs/source.txt)).
+## Worked examples
+
+Two, chosen to contrast:
+
+| Example | Source | What it demonstrates |
+| --- | --- | --- |
+| [`nano-swarm`](examples/nano-swarm/) | arXiv abstract on nano-drone swarm collision avoidance (ETH Zurich / Bologna) | Three figures graded `Verifiable`, each justified by the conditions the source actually states |
+| [`isomorphic-labs`](examples/isomorphic-labs/) | A company mission page | A source with no assessable technical claims — a legitimate finding, and a poor demo |
+
+Both are unedited output. Each directory's `SOURCES.md` records the provenance,
+the exact command, and what the run got wrong — read those before treating the
+reports as polished artefacts.
 
 ## Architecture
 
