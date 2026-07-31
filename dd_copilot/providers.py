@@ -1,7 +1,14 @@
 from typing import Literal, Protocol
 
 import requests
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
+
+from dd_copilot.costs import BudgetExceeded
 
 Tier = Literal["classify", "synthesis"]
 
@@ -18,10 +25,20 @@ class ClaudeProvider:
     CLASSIFY_MODEL = "claude-haiku-4-5-20251001"
     SYNTHESIS_MODEL = "claude-sonnet-5"
 
-    def __init__(self, client):
+    def __init__(self, client, tracker=None):
         self.client = client
+        # Optional CostTracker. Usage is only knowable here, where the response
+        # lands, so this is the one place spend can be measured rather than
+        # estimated.
+        self.tracker = tracker
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
+    # BudgetExceeded must never be retried: retrying it spends more money at
+    # exactly the moment the budget ran out.
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_not_exception_type(BudgetExceeded),
+    )
     def complete(self, system_prompt: str, user_prompt: str, tier: Tier) -> str:
         model = self.CLASSIFY_MODEL if tier == "classify" else self.SYNTHESIS_MODEL
         kwargs = {}
@@ -36,6 +53,10 @@ class ClaudeProvider:
             messages=[{"role": "user", "content": user_prompt}],
             **kwargs,
         )
+        if self.tracker is not None:
+            self.tracker.record(
+                model, message.usage.input_tokens, message.usage.output_tokens
+            )
         return message.content[0].text
 
 

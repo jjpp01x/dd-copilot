@@ -33,7 +33,8 @@ def test_analyze_command_writes_markdown_file(tmp_path):
     assert result.exit_code == 0
     assert output_path.exists()
     assert "Technical Due Diligence Report" in output_path.read_text()
-    mock_build_provider.assert_called_once_with("claude")
+    assert mock_build_provider.call_args.args == ("claude",)
+    assert mock_build_provider.call_args.kwargs["tracker"] is not None
 
 
 def test_analyze_command_selects_ollama_provider(tmp_path):
@@ -55,7 +56,9 @@ def test_analyze_command_selects_ollama_provider(tmp_path):
 
     assert result.exit_code == 0
     assert output_path.exists()
-    mock_build_provider.assert_called_once_with("ollama")
+    # The tracker is threaded through so spend is measured, not estimated.
+    assert mock_build_provider.call_args.args == ("ollama",)
+    assert mock_build_provider.call_args.kwargs["tracker"] is not None
 
 
 def test_confidential_mode_with_remote_provider_exits_without_analyzing(tmp_path):
@@ -89,3 +92,23 @@ def test_analyze_command_appends_an_audit_record(tmp_path):
     record = json.loads(audit_path.read_text().strip())
     assert record["mode"] == "public"
     assert len(record["report_sha256"]) == 64
+
+
+def test_budget_cap_aborts_the_run_with_a_distinct_exit_code(tmp_path):
+    """Exit code 3 distinguishes 'ran out of budget' from a confidential-mode
+    refusal (2) or a normal failure — a caller scripting this needs to tell
+    them apart."""
+    from dd_copilot.costs import BudgetExceeded
+
+    output_path = tmp_path / "report.md"
+
+    with patch("dd_copilot.cli.build_provider"), \
+         patch("dd_copilot.cli.analyze", side_effect=BudgetExceeded("spend reached $9.99")):
+        result = runner.invoke(
+            app,
+            ["analyze", "Some startup text.", "--output", str(output_path),
+             "--max-cost-usd", "0.50"],
+        )
+
+    assert result.exit_code == 3
+    assert not output_path.exists()
