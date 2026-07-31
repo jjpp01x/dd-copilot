@@ -56,3 +56,36 @@ def test_analyze_command_selects_ollama_provider(tmp_path):
     assert result.exit_code == 0
     assert output_path.exists()
     mock_build_provider.assert_called_once_with("ollama")
+
+
+def test_confidential_mode_with_remote_provider_exits_without_analyzing(tmp_path):
+    output_path = tmp_path / "report.md"
+
+    with patch("dd_copilot.cli.build_provider") as mock_build_provider:
+        result = runner.invoke(
+            app,
+            ["analyze", "Client material.", "--output", str(output_path), "--mode", "confidential"],
+        )
+
+    assert result.exit_code == 2
+    assert not output_path.exists()
+    # It must refuse *before* constructing a provider, not after sending anything.
+    mock_build_provider.assert_not_called()
+
+
+def test_analyze_command_appends_an_audit_record(tmp_path):
+    output_path = tmp_path / "report.md"
+    audit_path = tmp_path / "audit.jsonl"
+    fake_provider = _fake_provider(PAYLOADS)
+
+    with patch("dd_copilot.cli.build_provider", return_value=fake_provider):
+        result = runner.invoke(
+            app,
+            ["analyze", "Test text about a startup that solves X.", "--output", str(output_path),
+             "--audit-log", str(audit_path)],
+        )
+
+    assert result.exit_code == 0
+    record = json.loads(audit_path.read_text().strip())
+    assert record["mode"] == "public"
+    assert len(record["report_sha256"]) == 64
