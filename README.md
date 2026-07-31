@@ -20,9 +20,57 @@ Given a URL, a PDF, or pasted text, DD-Copilot extracts:
   (technology readiness level, hardware/vendor dependency, reproducibility,
   regulatory risk)
 
-...and assembles a five-section Markdown report: Executive Summary, What the
-Startup Says, What It Doesn't Say, Questions for the Next Founder Call, and a
-justified Confidence Level.
+...and assembles a six-section Markdown report: Executive Summary, What the
+Startup Says, What It Doesn't Say, Claims Assessed, Questions for the Next
+Founder Call, and a justified Confidence Level.
+
+## Claims assessed: the part that is actually judgement
+
+Anyone can summarise a whitepaper. The section worth reading is
+`## 4. Claims Assessed`, where every quantitative claim the source makes is
+given one of three verdicts:
+
+| Verdict | Means |
+| --- | --- |
+| **Verifiable** | The source states the figure *and* the method or conditions it was measured under. |
+| **Plausible** | A figure is given with no method attached — consistent with the state of the art, but not evidence. |
+| **Unsupported** | The claim contradicts the established state of the art, or rests on nothing at all. |
+
+The verdict is about **the evidence the source offers**, never about whether
+the technology works. "Unsupported" means the source gives no basis for the
+number, not that the number is false — a distinction that matters when the
+report ends up in front of an investment committee.
+
+Two rules are enforced in `claims.py` rather than trusted to the model:
+
+1. A claim whose citation cannot be verified against the source is **dropped
+   entirely**. If it isn't in the text, it isn't a claim the startup made.
+2. A claim **cannot be `verifiable` without a stated measurement method**,
+   however confident the model sounds. A number with no conditions attached is
+   at best plausible, and this is the single most common way a pitch overstates
+   its evidence.
+
+Every claim that is not `verifiable` becomes a question for the founder call.
+
+## Handling modes
+
+Client material and published material are not the same thing, so the tool
+does not treat them the same way:
+
+```bash
+ddcopilot analyze <source>                          # --mode public (default)
+ddcopilot analyze <source> --mode confidential --provider ollama
+```
+
+`--mode confidential` **refuses to run** against a remote provider rather than
+warning about it — the promise that client material never leaves the machine
+has to be enforced by the code, not by the operator remembering a flag. It
+refuses before a provider is even constructed.
+
+Every run appends one line to `audit.jsonl`: timestamp, mode, provider and a
+SHA-256 of the report. A report handed over months ago can then be matched to
+the run that produced it. In confidential mode the source name is redacted,
+because *what* a client is looking at is itself sensitive.
 
 See a real, unedited example: [`examples/isomorphic-labs/report.md`](examples/isomorphic-labs/report.md)
 (generated from [`examples/isomorphic-labs/source.txt`](examples/isomorphic-labs/source.txt)).
@@ -151,8 +199,33 @@ text caused a smaller local model to mistake a URL for a valid citation
 in a separate `SOURCES.md` file per example, never inside the text that
 gets analyzed.
 
+## Known limitations
+
+Stated plainly, because a diligence tool whose limits are undeclared is worse
+than no tool at all.
+
+- **It reads what it is given, and nothing else.** There is no cross-checking
+  against papers, patents, funding records or the state of the art. A claim
+  marked `plausible` is plausible *given no external evidence was consulted*.
+- **`unsupported` depends on the model's world knowledge**, which has a
+  training cutoff and no citation of its own. Of the three verdicts it is the
+  one to trust least — treat it as a flag to investigate, never as a finding.
+- **Citation verification proves provenance, not truth.** It guarantees the
+  quoted text really appears in the source. Whether the source is right is a
+  separate question the tool does not attempt.
+- **The risk checklist is fixed and generic.** Six items cover common deep-tech
+  failure modes; they are not tuned per vertical, and a domain expert will
+  always have sharper questions.
+- **Retrieval can miss.** Claims buried in material that doesn't match the
+  retrieval query may never reach the model. Absence from the report is not
+  evidence of absence from the source.
+- **No human is replaced.** The output is a first pass that makes an analyst
+  faster at reading; the judgement that matters still happens afterwards.
+
 ## Roadmap (not implemented)
 
 - Automatic comparison across 2-3 startups in the same vertical.
 - A weighted quantitative scoring model across startups.
+- A hard `MAX_COST_USD` cap that aborts a run before it overruns a budget.
+- `.docx` export, which is the format a client actually receives a report in.
 - Additional LLM providers beyond Claude and Ollama (e.g. OpenAI).
