@@ -50,6 +50,10 @@ class ExtractionResult(BaseModel):
     performance: ChecklistField
     risks: list[RiskChecklistItem]
     claims: list[Claim] = Field(default_factory=list)
+    #: Claims the model found but whose citation could not be verified against
+    #: the source. Reported rather than hidden: silently dropping them made the
+    #: report assert the source made no quantitative claims, which was false.
+    claims_discarded: int = 0
 
 
 class ReportInput(BaseModel):

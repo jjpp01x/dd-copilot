@@ -9,6 +9,8 @@ the number, not that the number is false — a distinction that matters when the
 report ends up in front of an investment committee.
 """
 
+from dataclasses import dataclass
+
 from llama_index.core import VectorStoreIndex
 
 from dd_copilot.citation_check import verify_citation
@@ -16,6 +18,21 @@ from dd_copilot.index import retrieve_relevant_chunks
 from dd_copilot.jsonio import parse_json_response
 from dd_copilot.models import Citation, Claim, ClaimVerdict
 from dd_copilot.providers import LLMProvider
+
+@dataclass(frozen=True)
+class ClaimExtraction:
+    """Claims that survived, and how many did not.
+
+    The count matters as much as the list. A model can find every claim in a
+    source and still leave the citation field blank; dropping those silently
+    made the report assert that the source made no quantitative claims, which
+    was false. Reporting the number keeps the no-hallucination guarantee while
+    admitting what was lost to it.
+    """
+
+    claims: list[Claim]
+    discarded: int
+
 
 VALID_VERDICTS: tuple[ClaimVerdict, ...] = ("verifiable", "plausible", "unsupported")
 
@@ -76,18 +93,30 @@ def classify_claim(payload: dict, source_text: str) -> Claim | None:
 
     return Claim(
         text=payload.get("text", ""),
-        figure=payload.get("figure") or None,
+        figure=_normalise_figure(payload.get("figure")),
         verdict=verdict,
         justification=justification or "No justification provided.",
         citations=[Citation(text=citation_text, source_chunk_id="retrieved")],
     )
 
 
+#: Models emit these as a *string* about as often as they emit JSON null.
+#: Left alone, "null" prints literally in the report's Figure column.
+_ABSENT_FIGURES = frozenset({"null", "none", "n/a", "na", "-", "—", ""})
+
+
+def _normalise_figure(raw: object) -> str | None:
+    text = str(raw or "").strip()
+    return None if text.lower() in _ABSENT_FIGURES else text
+
+
 def _append_note(justification: str, note: str) -> str:
     return f"{justification} {note}".strip() if justification else note
 
 
-def extract_claims(provider: LLMProvider, index: VectorStoreIndex, source_text: str) -> list[Claim]:
+def extract_claims(
+    provider: LLMProvider, index: VectorStoreIndex, source_text: str
+) -> ClaimExtraction:
     """Extracts and classifies every quantitative claim in the source.
 
     Runs on the cheap tier: enumerating claims is a classification task, and the
@@ -103,5 +132,7 @@ def extract_claims(provider: LLMProvider, index: VectorStoreIndex, source_text: 
         provider.complete(CLAIMS_SYSTEM_PROMPT, prompt, tier="classify")
     )
 
-    classified = (classify_claim(raw, source_text) for raw in payload.get("claims", []))
-    return [claim for claim in classified if claim is not None]
+    raw_claims = payload.get("claims", [])
+    classified = [classify_claim(raw, source_text) for raw in raw_claims]
+    kept = [claim for claim in classified if claim is not None]
+    return ClaimExtraction(claims=kept, discarded=len(classified) - len(kept))

@@ -108,10 +108,10 @@ def test_extract_claims_filters_fabrications_and_keeps_real_ones():
         }
     )
 
-    claims = extract_claims(provider, index, SOURCE_TEXT)
+    result = extract_claims(provider, index, SOURCE_TEXT)
 
-    assert len(claims) == 1
-    assert claims[0].verdict == "verifiable"
+    assert len(result.claims) == 1
+    assert result.claims[0].verdict == "verifiable"
     # Claim extraction is a classification task: it must not burn the expensive tier.
     assert provider.complete.call_args.kwargs["tier"] == "classify"
 
@@ -123,4 +123,56 @@ def test_extract_claims_returns_empty_list_when_source_makes_no_claims():
     provider = MagicMock()
     provider.complete.return_value = json.dumps({"claims": []})
 
-    assert extract_claims(provider, index, SOURCE_TEXT) == []
+    assert extract_claims(provider, index, SOURCE_TEXT).claims == []
+
+
+def test_extract_claims_reports_how_many_it_discarded():
+    """The failure this fixes: a model that finds every claim but leaves the
+    citation blank produced a report asserting 'the source makes no
+    quantitative claims' — a statement the evidence did not support, from a
+    tool whose whole purpose is not making those."""
+    doc = Document(source_name="robotics-startup", text=SOURCE_TEXT)
+    index = build_index(chunk_document(doc, chunk_size=80, chunk_overlap=10))
+
+    provider = MagicMock()
+    provider.complete.return_value = json.dumps(
+        {
+            "claims": [
+                _payload(),
+                _payload(citation="", text="Scales to 1,000 robots."),
+                _payload(citation="cures every disease", text="Cures everything."),
+            ]
+        }
+    )
+
+    result = extract_claims(provider, index, SOURCE_TEXT)
+
+    assert len(result.claims) == 1
+    assert result.discarded == 2
+
+
+def test_nothing_found_and_nothing_discarded_are_different_states():
+    doc = Document(source_name="vague-startup", text=SOURCE_TEXT)
+    index = build_index(chunk_document(doc, chunk_size=80, chunk_overlap=10))
+
+    provider = MagicMock()
+    provider.complete.return_value = json.dumps({"claims": []})
+
+    result = extract_claims(provider, index, SOURCE_TEXT)
+
+    assert result.claims == []
+    assert result.discarded == 0
+
+
+def test_the_string_null_is_treated_as_an_absent_figure():
+    """Models emit the *string* "null" as often as JSON null. Left alone it
+    prints literally in the report table."""
+    for absent in ("null", "None", "N/A", "  ", "none"):
+        claim = classify_claim(_payload(figure=absent), SOURCE_TEXT)
+        assert claim is not None
+        assert claim.figure is None, absent
+
+
+def test_a_real_figure_survives_normalisation():
+    claim = classify_claim(_payload(figure="8 ms"), SOURCE_TEXT)
+    assert claim is not None and claim.figure == "8 ms"
