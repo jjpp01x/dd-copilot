@@ -96,3 +96,44 @@ def test_report_states_plainly_when_there_are_no_quantitative_claims():
     )
 
     assert "no quantitative claims that could be assessed" in render_report(report_input)
+
+
+def test_discarded_claims_are_declared_not_hidden():
+    """The report must never say 'no quantitative claims' when claims were
+    found and thrown away — that is an assertion the evidence doesn't support."""
+    extraction = _extraction_with_claims([])
+    extraction.claims_discarded = 3
+    report_input = ReportInput(
+        source_name="demo", extraction=extraction,
+        confidence_score=2, confidence_justification="Extraction was lossy.",
+    )
+
+    markdown = render_report(report_input)
+
+    assert "3 further claim(s) were found but could not be assessed" in markdown
+    assert "not a finding that the source makes no quantitative claims" in markdown
+
+
+def test_a_clean_run_carries_no_discarded_note():
+    claim = Claim(text="Runs in 8 ms.", verdict="verifiable", justification="Protocol stated.")
+    report_input = ReportInput(
+        source_name="demo", extraction=_extraction_with_claims([claim]),
+        confidence_score=4, confidence_justification="Good coverage.",
+    )
+
+    assert "could not be assessed" not in render_report(report_input)
+
+
+def test_surviving_claims_still_report_the_ones_that_did_not():
+    claim = Claim(text="Runs in 8 ms.", verdict="verifiable", justification="Protocol stated.")
+    extraction = _extraction_with_claims([claim])
+    extraction.claims_discarded = 2
+    report_input = ReportInput(
+        source_name="demo", extraction=extraction,
+        confidence_score=3, confidence_justification="Partly lossy.",
+    )
+
+    markdown = render_report(report_input)
+
+    assert "| Verifiable |" in markdown
+    assert "2 further claim(s)" in markdown

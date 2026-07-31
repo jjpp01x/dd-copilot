@@ -41,8 +41,32 @@ def _escape_cell(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ").strip()
 
 
-def _render_claims_table(claims: list[Claim]) -> str:
+def _discarded_note(discarded: int) -> str:
+    """Says what was lost to citation verification.
+
+    Without this, a model that finds every claim but leaves the citation blank
+    yields a report asserting the source made no quantitative claims — a
+    statement the evidence does not support, from a tool built not to make
+    those. The claims stay out of the table; their absence stops being silent.
+    """
+    if not discarded:
+        return ""
+    return (
+        f"\n\n> **{discarded} further claim(s) were found but could not be assessed.** "
+        f"Their citations did not verify against the source, so they are excluded "
+        f"rather than reported on. This is a limit of the extraction, not a "
+        f"finding about the source — a weaker model tends to raise this count."
+    )
+
+
+def _render_claims_table(claims: list[Claim], discarded: int = 0) -> str:
     if not claims:
+        if discarded:
+            return (
+                "- No claim could be assessed: every claim found was excluded for an "
+                "unverifiable citation. **This is not a finding that the source makes "
+                "no quantitative claims** — see the note below."
+            ) + _discarded_note(discarded)
         return "- The source makes no quantitative claims that could be assessed."
     header = (
         "| Claim | Figure | Verdict | Why |\n"
@@ -57,7 +81,7 @@ def _render_claims_table(claims: list[Claim]) -> str:
         )
         for c in claims
     ]
-    return "\n".join([header, *rows])
+    return "\n".join([header, *rows]) + _discarded_note(discarded)
 
 
 def _claim_questions(claims: list[Claim]) -> list[str]:
@@ -96,7 +120,8 @@ def render_report(report_input: ReportInput) -> str:
             "## 1. Executive Summary\n\n" + (extraction.problem.value or "Not enough public information for an executive summary."),
             "## 2. What the Startup Says\n\n" + "\n".join(says_lines),
             "## 3. What It Doesn't Say\n\n" + "\n".join(doesnt_say_lines),
-            "## 4. Claims Assessed\n\n" + _render_claims_table(extraction.claims),
+            "## 4. Claims Assessed\n\n"
+            + _render_claims_table(extraction.claims, extraction.claims_discarded),
             "## 5. Questions for the Next Founder Call\n\n" + "\n".join(question_lines),
             "## 6. Confidence Level\n\n"
             f"**{report_input.confidence_score}/5** — {report_input.confidence_justification}",

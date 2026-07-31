@@ -103,14 +103,15 @@ def run_extraction(provider: LLMProvider, index: VectorStoreIndex, source_text: 
     differentiation = extract_field(provider, "differentiation", FIELD_QUESTIONS["differentiation"], index, source_text)
     performance = extract_field(provider, "performance", FIELD_QUESTIONS["performance"], index, source_text)
     risks = extract_risks(provider, index, source_text)
-    claims = extract_claims(provider, index, source_text)
+    claim_extraction = extract_claims(provider, index, source_text)
 
     extraction = ExtractionResult(
         problem=problem,
         differentiation=differentiation,
         performance=performance,
         risks=risks,
-        claims=claims,
+        claims=claim_extraction.claims,
+        claims_discarded=claim_extraction.discarded,
     )
 
     confidence_score, confidence_justification = synthesize_confidence(provider, extraction)

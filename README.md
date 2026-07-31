@@ -52,6 +52,16 @@ Two rules are enforced in `claims.py` rather than trusted to the model:
 
 Every claim that is not `verifiable` becomes a question for the founder call.
 
+**Discarded claims are declared, not hidden.** Rule 1 is a real filter: a model
+that finds every claim in a source but leaves the citation field blank has all
+of them dropped. Before this was surfaced, that produced a report stating *"the
+source makes no quantitative claims"* — an assertion the evidence did not
+support, from a tool built specifically not to make those. The claims still stay
+out of the table; the report now says how many were lost and why, and says
+plainly that this is a limit of the extraction rather than a finding about the
+source. It was found by running the pipeline against a real paper, not by a
+test.
+
 ## Handling modes
 
 Client material and published material are not the same thing, so the tool
