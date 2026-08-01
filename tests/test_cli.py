@@ -144,3 +144,45 @@ def test_without_the_docx_flag_no_word_document_is_written(tmp_path):
 
     assert result.exit_code == 0
     assert not list(tmp_path.glob("*.docx"))
+
+
+def test_json_flag_writes_the_structured_report(tmp_path, monkeypatch):
+    import json
+
+    from typer.testing import CliRunner
+
+    from dd_copilot import cli
+    from dd_copilot.models import ChecklistField, ExtractionResult, ReportInput
+
+    report_input = ReportInput(
+        source_name="acme",
+        extraction=ExtractionResult(
+            problem=ChecklistField(value="p", mentioned=True),
+            differentiation=ChecklistField(value="d", mentioned=True),
+            performance=ChecklistField(value="perf", mentioned=True),
+            risks=[],
+        ),
+        confidence_score=3,
+        confidence_justification="j",
+    )
+    monkeypatch.setattr(cli, "build_provider", lambda name, tracker=None: object())
+    monkeypatch.setattr(cli, "analyze", lambda source, provider: ("# Report", report_input))
+
+    json_path = tmp_path / "brief.json"
+    result = CliRunner().invoke(
+        cli.app,
+        [
+            "analyze",
+            "texto de prueba",
+            "--output",
+            str(tmp_path / "report.md"),
+            "--json",
+            str(json_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(json_path.read_text())
+    assert payload["source_name"] == "acme"
+    assert payload["confidence_score"] == 3
+    assert "claims" in payload["extraction"]

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import typer
 from anthropic import Anthropic
@@ -45,6 +46,12 @@ def analyze_command(
         "--docx",
         help="Also write the report as a Word document — the format a client receives.",
     ),
+    json_out: str = typer.Option(
+        None,
+        "--json",
+        help="También escribe los datos estructurados en JSON — es lo que "
+        "consume expert-probe. El Markdown es un derivado de este fichero.",
+    ),
     max_cost_usd: float = typer.Option(
         None,
         "--max-cost-usd",
@@ -65,7 +72,7 @@ def analyze_command(
     llm_provider = build_provider(provider, tracker=tracker)
     console.print(f"[bold]Analyzing:[/bold] {source[:80]}...")
     try:
-        markdown = analyze(source, llm_provider)
+        markdown, report_input = analyze(source, llm_provider)
     except BudgetExceeded as exc:
         console.print(f"[bold red]Stopped:[/bold red] {exc}")
         raise typer.Exit(code=3)
@@ -79,6 +86,11 @@ def analyze_command(
         report_markdown=markdown,
     )
     console.print(f"[bold green]Report generated:[/bold green] {output}")
+    if json_out:
+        Path(json_out).write_text(
+            report_input.model_dump_json(indent=2), encoding="utf-8"
+        )
+        console.print(f"[bold green]JSON:[/bold green] {json_out}")
     if docx:
         try:
             from dd_copilot.docx_export import write_docx
