@@ -31,5 +31,5 @@ llm_choice = st.radio("LLM provider", ["Claude", "Ollama (local)"], horizontal=T
 if st.button("Analyze", disabled=not source_input):
     with st.spinner("Analyzing public material..."):
         provider = build_provider("claude" if llm_choice == "Claude" else "ollama")
-        markdown = analyze(source_input, provider)
+        markdown, _report_input = analyze(source_input, provider)
     st.markdown(markdown)
